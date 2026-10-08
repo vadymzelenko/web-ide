@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="theme-color" content="#0a0a0c">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
+    <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%237c8aff'/><path d='M10 12l-4 4 4 4M22 12l4 4-4 4M19 9l-6 14' stroke='%230a0a0c' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+    <link rel="stylesheet" href="src/theme.css">
+    <title>WebIDE</title>
+</head>
+<body data-theme="dark">
+
+<header>
+    <div class="brand">
+        <svg viewBox="0 0 32 32" width="22" height="22"><rect width="32" height="32" rx="8" fill="var(--ac-1)"/><path d="M10 12l-4 4 4 4M22 12l4 4-4 4M19 9l-6 14" stroke="var(--bg-0)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>WebIDE</span>
+    </div>
+    <span class="sp"></span>
+    <button class="ib" id="split-btn" title="Сплит (Ctrl+\\)">
+        <svg viewBox="0 0 24 24" width="16" height="16"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    </button>
+    <button class="ib" id="save" title="Сохранить (Ctrl+S)">
+        <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    </button>
+    <button class="ib primary" id="run" title="Запустить (Ctrl+Enter)">
+        <svg viewBox="0 0 24 24" width="14" height="14"><polygon points="6 4 20 12 6 20"/></svg>
+    </button>
+    <button class="ib" id="menu-btn" title="Меню">
+        <svg viewBox="0 0 24 24" width="16" height="16"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+</header>
+
+<div class="section-tabs" id="section-tabs">
+    <button data-t="files"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>Файлы</span></button>
+    <button data-t="editor" class="on"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg><span>Код</span></button>
+    <button data-t="preview"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span>Превью</span></button>
+    <button data-t="terminal"><svg viewBox="0 0 24 24" width="14" height="14"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><span>Терм</span></button>
+</div>
+
+<div id="menu-popup" class="menu-popup">
+    <button id="tgl-files"><svg viewBox="0 0 24 24" width="14" height="14"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/></svg>Проводник</button>
+    <button id="tgl-term"><svg viewBox="0 0 24 24" width="14" height="14"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="14" x2="21" y2="14"/></svg>Терминал</button>
+    <button id="fmt"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M4 6h16M4 12h10M4 18h16"/></svg>Форматировать</button>
+    <button id="gear"><svg viewBox="0 0 24 24" width="14" height="14"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Настройки</button>
+    <hr>
+    <button id="tgl-hide"><svg viewBox="0 0 24 24" width="14" height="14"><polyline points="6 15 12 9 18 15"/></svg>Скрыть шапку</button>
+</div>
+
+<button id="burger" class="burger" title="Показать шапку">
+    <svg viewBox="0 0 24 24" width="20" height="20"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</button>
+
+<div id="scrim"></div>
+
+<main id="main">
+    <!-- FILES -->
+    <section data-p="files">
+        <i class="rz" data-v="--w1"></i>
+        <div class="panel-head">
+            <span class="panel-title">Проводник</span>
+            <button class="ib sm" id="nf" title="Новый файл"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></button>
+            <button class="ib sm" id="nd" title="Новая папка"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>
+            <button class="ib sm" id="zip-exp" title="Экспорт ZIP"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+        </div>
+        <ul id="tree"></ul>
+    </section>
+
+    <!-- EDITOR -->
+    <section data-p="editor">
+        <div class="editor-split" id="editor-split">
+            <div class="ed-pane" data-pane="0">
+                <div id="tabs" class="tabbar"></div>
+                <div id="ed"></div>
+            </div>
+            <div class="ed-pane" data-pane="1" hidden>
+                <div id="tabs2" class="tabbar"></div>
+                <div id="ed2"></div>
+            </div>
+        </div>
+        <div id="status">
+            <span class="st-item"><b id="st-file">—</b></span>
+            <span class="st-item" id="st-lang">plain</span>
+            <span class="sp"></span>
+            <span class="st-item" id="st-pos">1:1</span>
+            <span class="st-item" id="st-saved">
+                <svg viewBox="0 0 24 24" width="11" height="11"><path d="M20 6L9 17l-5-5"/></svg>
+                <span>готов</span>
+            </span>
+        </div>
+    </section>
+
+    <!-- PREVIEW -->
+    <section data-p="preview">
+        <i class="rz l" data-v="--w3" data-inv="1"></i>
+        <div class="panel-head">
+            <span class="panel-title">Превью</span>
+            <div class="seg">
+                <button data-w="390px" title="Мобильный"><svg viewBox="0 0 24 24" width="14" height="14"><rect x="7" y="2" width="10" height="20" rx="2"/></svg></button>
+                <button data-w="820px" title="Планшет"><svg viewBox="0 0 24 24" width="14" height="14"><rect x="4" y="2" width="16" height="20" rx="2"/></svg></button>
+                <button data-w="100%" class="on" title="Десктоп"><svg viewBox="0 0 24 24" width="14" height="14"><rect x="2" y="4" width="20" height="13" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/></svg></button>
+            </div>
+            <span class="sp"></span>
+            <button class="ib sm" id="reload" title="Перезагрузить"><svg viewBox="0 0 24 24" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+            <button class="ib sm" id="full" title="Развернуть"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+        </div>
+        <div class="preview-stage">
+            <iframe id="pv" sandbox="allow-scripts allow-modals allow-forms allow-popups allow-downloads"></iframe>
+        </div>
+    </section>
+
+    <!-- TERMINAL -->
+    <section data-p="terminal">
+        <i class="rz-h" id="rz-term"></i>
+        <div class="panel-head">
+            <span class="panel-title">Терминал</span>
+            <button class="ib sm" id="term-clear" title="Очистить"><svg viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>
+        </div>
+        <div id="out"></div>
+        <div class="term-input-wrap">
+            <span class="prompt">$</span>
+            <input id="cmd" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder="введите help">
+        </div>
+    </section>
+</main>
+
+<div id="keyboard" role="toolbar" aria-label="Клавиатура кода"></div>
+
+<div id="ctx-menu" class="ctx-menu"></div>
+
+<dialog id="prompt-dialog">
+    <form method="dialog">
+        <div class="dialog-header"><h3 id="prompt-title">Ввод</h3></div>
+        <div class="dialog-body">
+            <input id="prompt-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <div class="dialog-actions">
+                <button value="cancel" class="btn">Отмена</button>
+                <button value="ok" class="btn primary">ОК</button>
+            </div>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="set">
+    <div class="dialog-header">
+        <h3>Настройки</h3>
+        <button id="s-close" class="ib sm" title="Закрыть"><svg viewBox="0 0 24 24" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+
+    <div class="dialog-body scroll">
+        <div class="set-group">
+            <h4>Редактор</h4>
+            <div class="field">
+                <div class="field-top"><span>Тема</span></div>
+                <div class="seg-lg" id="s-theme">
+                    <button type="button" data-v="dark">Тёмная</button>
+                    <button type="button" data-v="midnight">Midnight</button>
+                    <button type="button" data-v="light">Светлая</button>
+                </div>
+            </div>
+            <div class="field">
+                <div class="field-top"><span>Размер шрифта кода</span><output id="o-fs"></output></div>
+                <input id="s-fs" type="range" min="10" max="28" step="1">
+            </div>
+            <label class="row"><input id="s-status" type="checkbox"> Показывать статусбар</label>
+            <label class="row"><input id="s-live" type="checkbox"> Автоперезапуск превью</label>
+        </div>
+
+        <div class="set-group">
+            <h4>Клавиатура</h4>
+            <p class="hint">Пока настройки открыты, клавиатура показана — меняйте ползунки и смотрите результат.</p>
+            <div class="field">
+                <div class="field-top"><span>Высота</span><output id="o-kb-h"></output></div>
+                <input id="s-kb-h" type="range" min="160" max="500" step="10">
+            </div>
+            <div class="field">
+                <div class="field-top"><span>Зазор между клавишами</span><output id="o-kb-gap"></output></div>
+                <input id="s-kb-gap" type="range" min="0" max="10" step="1">
+            </div>
+            <div class="field">
+                <div class="field-top"><span>Прозрачность</span><output id="o-kb-op"></output></div>
+                <input id="s-kb-op" type="range" min="40" max="100" step="5">
+            </div>
+            <div class="field">
+                <div class="field-top"><span>Размер символов</span><output id="o-kb-scale"></output></div>
+                <input id="s-kb-scale" type="range" min="80" max="130" step="5">
+            </div>
+            <label class="row"><input id="s-ext-kb" type="checkbox"> Внешняя клавиатура (отключить экранную)</label>
+            <button id="s-kb-def" class="btn" type="button">Вернуть значения клавиатуры</button>
+        </div>
+    </div>
+
+    <div class="dialog-actions foot">
+        <button id="s-reset" class="btn danger" type="button">Сбросить проект</button>
+        <span class="sp"></span>
+        <button id="s-ok" class="btn primary" type="button">Готово</button>
+    </div>
+</dialog>
+
+<dialog id="confirm-dialog">
+    <form method="dialog">
+        <div class="dialog-header"><h3 id="confirm-title">Подтверждение</h3></div>
+        <div class="dialog-body">
+            <p id="confirm-text" style="margin:0 0 16px;color:var(--fg-2);font-size:13px"></p>
+            <div class="dialog-actions" style="justify-content:flex-end">
+                <button value="cancel" class="btn">Отмена</button>
+                <button value="ok" id="confirm-ok" class="btn primary">ОК</button>
+            </div>
+        </div>
+    </form>
+</dialog>
+
+<div id="drop-overlay">
+    <svg viewBox="0 0 24 24" width="48" height="48"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <div>Отпустите файлы или папку</div>
+    <div class="drop-sub">Поддерживаются текстовые файлы и .zip</div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

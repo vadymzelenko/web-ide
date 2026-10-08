@@ -1,0 +1,10 @@
+export { basicSetup } from 'codemirror';
+export { EditorView, keymap, drawSelection } from '@codemirror/view';
+export { EditorState } from '@codemirror/state';
+export { indentWithTab } from '@codemirror/commands';
+export { html } from '@codemirror/lang-html';
+export { css } from '@codemirror/lang-css';
+export { javascript } from '@codemirror/lang-javascript';
+export { autocompletion } from '@codemirror/autocomplete';
+export { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+export { tags } from '@lezer/highlight';
