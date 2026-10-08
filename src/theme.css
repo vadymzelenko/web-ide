@@ -174,7 +174,6 @@ body.header-hidden .toolbar {
 
 .sp { flex: 1; }
 
-/* --- Файловые доки --- */
 .tb-docs {
     display: flex;
     align-items: stretch;
@@ -212,7 +211,6 @@ body.header-hidden .toolbar {
 .tb-docs button.on .close { opacity: .7; }
 .tb-docs .close:hover { opacity: 1; background: var(--bg-h); color: var(--fg-1); }
 
-/* --- Кнопки режимов (mobile only) --- */
 .tb-modes {
     display: none;
     align-items: center;
@@ -232,7 +230,6 @@ body.header-hidden .toolbar {
 .tb-modes button.on    { color: var(--fg-1); background: var(--ac-soft); }
 .tb-modes button svg   { flex-shrink: 0; }
 
-/* --- Правые action-кнопки --- */
 .tb-actions {
     display: flex;
     align-items: center;
@@ -244,7 +241,6 @@ body.header-hidden .toolbar {
     border-radius: 5px;
 }
 
-/* Burger — только когда тулбар скрыт */
 .burger {
     display: none;
     position: fixed;
@@ -405,7 +401,7 @@ section.full { position: fixed; inset: 0; z-index: 100; }
 #tree .n .icon-dir  { color: var(--ac-2); }
 
 /* ============================================================
-   7. Editor tabs (desktop, per-pane)
+   7. Editor tabs (desktop)
    ============================================================ */
 .tabbar {
     flex-shrink: 0;
@@ -800,7 +796,7 @@ dialog input[type="range"]::-moz-range-thumb {
 }
 
 /* ============================================================
-   15. Keyboard (custom, transparent)
+   15. Keyboard — полупрозрачная, без «тяжёлой» тени
    ============================================================ */
 #keyboard {
     display: none;
@@ -812,10 +808,10 @@ dialog input[type="range"]::-moz-range-thumb {
     padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
     flex-direction: column;
     gap: var(--kb-gap);
-    background: color-mix(in srgb, var(--bg-2) 82%, transparent);
+    /* Прозрачность через color-mix; надписи не бледнеют */
+    background: color-mix(in srgb, var(--bg-2) calc(var(--kb-op) * 100%), transparent);
     border-top: 1px solid var(--bd-2);
     box-shadow: none;
-    opacity: var(--kb-op);
     z-index: 120;
     touch-action: manipulation;
     -webkit-user-select: none; user-select: none;
@@ -833,17 +829,21 @@ body.kb-preview #keyboard { display: flex; }
     display: flex; align-items: center; justify-content: center;
     border: 1px solid color-mix(in srgb, var(--bd-2) 60%, transparent);
     border-radius: 6px;
-    background: color-mix(in srgb, var(--bg-3) 72%, transparent);
+    background: color-mix(in srgb, var(--bg-3) calc(var(--kb-op) * 100%), transparent);
     color: var(--fg-1);
     font-family: var(--font-mono);
     font-size: calc(16px * var(--kb-scale));
     font-weight: 500;
     min-height: 0;
-    transition: background var(--t-fast), transform var(--t-fast);
+    transition: none;              /* меньше перерисовок при нажатии */
 }
 #keyboard button:active        { background: var(--ac-soft); transform: scale(.94); }
 #keyboard button.wide          { flex: 4; }
-#keyboard button.fn            { background: color-mix(in srgb, var(--bg-h) 72%, transparent); color: var(--fg-2); font-size: calc(13px * var(--kb-scale)); }
+#keyboard button.fn {
+    background: color-mix(in srgb, var(--bg-h) calc(var(--kb-op) * 100%), transparent);
+    color: var(--fg-2);
+    font-size: calc(13px * var(--kb-scale));
+}
 #keyboard button.fn.accent     { color: var(--ac-1); }
 #keyboard button.on            { background: var(--ac-1); color: var(--ac-fg); }
 
@@ -860,7 +860,12 @@ body.kb-preview #keyboard { display: flex; }
 #keyboard.split .kb-half .kb-row  { flex: 1; min-height: 0; }
 #keyboard.split .kb-half button.wide { flex: 2; }
 
-body.typing main { padding-bottom: var(--kb-h); }
+/* Редактор не сжимается целиком — клавиатура накладывается сверху,
+   а скроллбар кода получает запас снизу, чтобы курсор можно было увидеть. */
+body.typing main       { padding-bottom: 0; }
+body.typing .cm-content { padding-bottom: var(--kb-h); }
+
+body.kb-term [data-p="terminal"] { padding-bottom: var(--kb-h, 300px); }
 
 @media (orientation: landscape) and (max-height: 500px) {
     #keyboard button      { border-radius: 4px; }
@@ -945,7 +950,6 @@ body.typing main { padding-bottom: var(--kb-h); }
    18. Mobile layout
    ============================================================ */
 @media (max-width: 899px), (max-height: 500px) {
-    /* В тулбаре показываем режимы, прячем вторичные действия */
     .tb-modes { display: flex; }
     .tb-brand span { display: none; }
     #split-btn,
@@ -953,7 +957,6 @@ body.typing main { padding-bottom: var(--kb-h); }
     .tb-actions .ib { width: 32px; height: 32px; }
     .tb-modes button { width: 32px; height: 32px; }
 
-    /* Внутренние .tabbar скрыты — их роль выполняет .tb-docs */
     .tabbar { display: none; }
 
     main { display: block; }
@@ -961,7 +964,6 @@ body.typing main { padding-bottom: var(--kb-h); }
     section.on        { display: flex; }
     section:not(.on)  { display: none; }
 
-    /* Лист «Файлы» */
     main > section[data-p="files"] {
         display: flex;
         position: fixed;
@@ -992,7 +994,6 @@ body.typing main { padding-bottom: var(--kb-h); }
         border-radius: 2px; background: var(--bd-3);
     }
 
-    /* Тач-зоны */
     .panel-head        { height: 42px; padding: 0 6px 0 10px; }
     .panel-head .ib.sm { width: 40px; height: 40px; border-radius: var(--r); }
     .panel-head .ib.sm svg { width: 18px; height: 18px; }
@@ -1011,7 +1012,6 @@ body.typing main { padding-bottom: var(--kb-h); }
 
     .cm-tooltip-autocomplete ul li { font-size: 15px; }
 
-    /* Настройки сверху */
     dialog#set {
         position: fixed; top: 8px; bottom: auto; left: 0; right: 0;
         margin: 0 auto; z-index: 130;
@@ -1072,42 +1072,3 @@ body.settings-open #scrim { opacity: 1; visibility: visible; transition-delay: 0
 #toast.on  { opacity: 1; transform: translateX(-50%) translateY(0); }
 #toast.err { border-color: var(--err); color: var(--err); }
 #toast.ok  { border-color: var(--ok);  color: var(--ok); }
-
-
-/* ============================================================
-   Preview zoom controls
-   ============================================================ */
-.zoom {
-    display: inline-flex;
-    align-items: center;
-    gap: 1px;
-    background: var(--bg-2);
-    border: 1px solid var(--bd-1);
-    border-radius: var(--r-sm);
-    padding: 2px;
-}
-.zoom .ib {
-    width: 24px; height: 22px;
-    border-radius: 3px;
-    color: var(--fg-3);
-}
-.zoom .ib:hover { color: var(--fg-1); background: var(--bg-3); }
-.zoom .zoom-val {
-    min-width: 44px;
-    width: auto;
-    padding: 0 6px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-variant-numeric: tabular-nums;
-    color: var(--fg-2);
-}
-.zoom .zoom-val:hover { color: var(--fg-1); }
-
-/* Если превью вылезает за пределы контейнера при зуме >100% — даём скролл */
-.preview-stage { overflow: auto; }
-
-@media (max-width: 899px), (max-height: 500px) {
-    .zoom .ib { width: 32px; height: 30px; }
-    .zoom .zoom-val { min-width: 50px; font-size: 12px; }
-}
-

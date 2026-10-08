@@ -52,7 +52,8 @@ const collectVars = doc => {
 
 const makeSource = lang => context => {
     const word = context.matchBefore(/[\w$.-]*/);
-    if (!word || (!word.text && !context.explicit)) return null;
+    /* Не гоняем regex по документу на каждом одиночном символе. */
+    if (!word || (!context.explicit && word.text.length < 2)) return null;
     const base = lang === 'css' ? CSS_KEYWORDS : lang === 'html' ? HTML_KEYWORDS : JS_KEYWORDS;
     const pool = [...new Set([...base, ...collectVars(context.state.doc)])];
     const list = pool.filter(k => k.startsWith(word.text) && k !== word.text);
@@ -71,20 +72,34 @@ const makeSource = lang => context => {
 const isMobile = () => typeof matchMedia !== 'undefined'
     && matchMedia('(max-width: 899px), (max-height: 500px)').matches;
 
-/* Своя клавиатура включена: мобильный экран и не стоит «внешняя клавиатура» */
 const customKb = () => isMobile() && localStorage.getItem('ext-kb') !== '1';
 
-/* Функция, а не объект: значение пересчитывается при каждом обновлении,
-   поэтому настройки и поворот экрана работают без перезагрузки. */
+/* Кэш, чтобы не читать localStorage/matchMedia на каждом апдейте. */
+let _kb = customKb();
+const refreshKbCache = () => { _kb = customKb(); };
+if (typeof window !== 'undefined') {
+    window.addEventListener('resize', refreshKbCache);
+    window.addEventListener('orientationchange', refreshKbCache);
+}
+
 const contentAttributes = EditorView.contentAttributes.of(() => ({
     autocapitalize: 'off',
     autocorrect: 'off',
     autocomplete: 'off',
     spellcheck: 'false',
-    ...(customKb() ? { inputmode: 'none' } : {})
+    ...(_kb ? { inputmode: 'none' } : {})
 }));
 
 const instances = new Set();
+
+/* Сброс pending-onChange при уходе со страницы — иначе теряются последние 150 мс ввода. */
+if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            instances.forEach(a => a.flush?.());
+        }
+    });
+}
 
 /* ---------- Стили ---------- */
 const highlight = HighlightStyle.define([
@@ -133,9 +148,7 @@ const initLangs = () => {
 };
 
 /* ================================================================
-   Фабрика: создаёт независимый редактор на элементе el.
-   Возвращает api { set, get, focus, blur, insert, newline, indent,
-                    backspace, moveCursor, moveLine, revealCursor, view }
+   Фабрика: независимый редактор на элементе el.
    ================================================================ */
 export function create(el, {
     onChange = () => {},
@@ -147,6 +160,9 @@ export function create(el, {
     instances.add(api);
     let view = null;
     let ta = null;
+
+    /* Один pending-таймер на инстанс. */
+    let changeTimer = null;
 
     try {
         initLangs();
@@ -164,29 +180,69 @@ export function create(el, {
                 contentAttributes,
                 autocompletion({ override: [makeSource(lang)] }),
                 EditorView.updateListener.of(u => {
-                    if (u.docChanged) onChange(u.state.doc.toString());
+                    if (u.docChanged) {
+                        clearTimeout(changeTimer);
+                        changeTimer = setTimeout(() => {
+                            changeTimer = null;
+                            onChange(view.state.doc.toString());
+                        }, 150);
+                    }
                     if (u.selectionSet || u.docChanged) {
                         const head = u.state.selection.main.head;
                         const line = u.state.doc.lineAt(head);
                         onCursor?.({ line: line.number, col: head - line.from + 1 });
                     }
                 }),
+                /* Курсор не должен уезжать под клавиатуру. */
+                EditorView.scrollMargins.of(() =>
+                    document.body.classList.contains('typing')
+                        ? { bottom: document.querySelector('#keyboard')?.offsetHeight || 0 }
+                        : null
+                ),
                 keymap.of([
                     indentWithTab,
-                    { key: 'Mod-s',     run: () => (onSave?.(), true) },
-                    { key: 'Mod-Enter', run: () => (onRun?.(),  true) }
+                    { key: 'Mod-s',     run: () => { api.flush(); onSave?.(); return true; } },
+                    { key: 'Mod-Enter', run: () => { api.flush(); onRun?.();  return true; } }
                 ]),
                 EditorView.lineWrapping
             ]
         });
 
+        /* ---------- Точные касания: тап ставит каретку сам ---------- */
+        let tp = null;
+        view.dom.addEventListener('pointerdown', e => {
+            tp = e.pointerType === 'touch'
+                ? { x: e.clientX, y: e.clientY, t: performance.now() }
+                : null;
+        }, { passive: true });
+        view.dom.addEventListener('pointerup', e => {
+            if (!tp || e.target.closest('.cm-gutters')) { tp = null; return; }
+            const tap = Math.hypot(e.clientX - tp.x, e.clientY - tp.y) < 8
+                && performance.now() - tp.t < 350;
+            tp = null;
+            if (!tap) return;
+            const pos = view.posAtCoords({ x: e.clientX, y: e.clientY }, false);
+            if (pos != null) view.dispatch({ selection: { anchor: pos } });
+        });
+
         api.set = (t, l = 'js') => {
+            /* Pending-правка отменяется — новое содержимое её замещает. */
+            if (changeTimer) { clearTimeout(changeTimer); changeTimer = null; }
             try { view.setState(makeState(t, l)); }
             catch (e) { console.warn('setState:', e); }
         };
         api.get = () => view.state.doc.toString();
         api.focus = () => view.focus();
         api.blur = () => view.contentDOM?.blur();
+        api.flush = () => {
+            if (!changeTimer) return;
+            clearTimeout(changeTimer);
+            changeTimer = null;
+            onChange(view.state.doc.toString());
+        };
+
+        /* На каждом нажатии view.focus() дорого — только если фокуса нет. */
+        const focusIfNeeded = () => { if (!view.hasFocus) view.focus(); };
 
         api.insert = (text, offset = text.length) => {
             const from = view.state.selection.main.head;
@@ -196,14 +252,14 @@ export function create(el, {
                 scrollIntoView: true,
                 userEvent: 'input.type'
             });
-            view.focus();
+            focusIfNeeded();
         };
         api.newline = () => api.insert('\n');
         api.indent = () => api.insert('  ');
         api.backspace = () => {
             const sel = view.state.selection.main;
             if (sel.empty) {
-                if (sel.head <= 0) { view.focus(); return; }
+                if (sel.head <= 0) { focusIfNeeded(); return; }
                 view.dispatch({
                     changes: { from: sel.head - 1, to: sel.head },
                     scrollIntoView: true,
@@ -216,23 +272,23 @@ export function create(el, {
                     userEvent: 'delete.backward'
                 });
             }
-            view.focus();
+            focusIfNeeded();
         };
         api.moveCursor = dir => {
             const head = view.state.selection.main.head;
             const next = Math.max(0, Math.min(view.state.doc.length, head + dir));
             view.dispatch({ selection: { anchor: next }, scrollIntoView: true });
-            view.focus();
+            focusIfNeeded();
         };
         api.moveLine = dir => {
             const head = view.state.selection.main.head;
             const line = view.state.doc.lineAt(head);
             const target = line.number + dir;
-            if (target < 1 || target > view.state.doc.lines) { view.focus(); return; }
+            if (target < 1 || target > view.state.doc.lines) { focusIfNeeded(); return; }
             const tl = view.state.doc.line(target);
             const next = Math.min(tl.from + (head - line.from), tl.to);
             view.dispatch({ selection: { anchor: next }, scrollIntoView: true });
-            view.focus();
+            focusIfNeeded();
         };
         api.revealCursor = () => {
             const pos = view.state.selection.main.head;
@@ -240,8 +296,10 @@ export function create(el, {
         };
         api.view = view;
         api.refreshInput = () => {
+            _kb = customKb();
             const c = view.contentDOM;
-            if (customKb()) c.setAttribute('inputmode', 'none'); else c.removeAttribute('inputmode');
+            if (_kb) c.setAttribute('inputmode', 'none');
+            else      c.removeAttribute('inputmode');
             try { view.dispatch({}); } catch {}
         };
     } catch (e) {
@@ -264,13 +322,14 @@ export function create(el, {
                 ta.selectionStart = ta.selectionEnd = s + 2;
                 onChange(ta.value);
             }
-            if ((e.ctrlKey || e.metaKey) && e.key === 's')     { e.preventDefault(); onSave?.(); }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); onRun?.(); }
+            if ((e.ctrlKey || e.metaKey) && e.key === 's')     { e.preventDefault(); api.flush(); onSave?.(); }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); api.flush(); onRun?.(); }
         };
         api.set = t => { ta.value = t; };
         api.get = () => ta.value;
         api.focus = () => ta.focus();
         api.blur = () => ta.blur();
+        api.flush = () => {};   /* textarea пишет напрямую, отложенных изменений нет */
         api.insert = (text, offset = text.length) => {
             const s = ta.selectionStart, en = ta.selectionEnd;
             ta.value = ta.value.slice(0, s) + text + ta.value.slice(en);
@@ -307,7 +366,6 @@ export function create(el, {
 
 /* ================================================================
    Совместимость: модульные set/get/... делегируют активному api.
-   keyboard.js импортирует именно их.
    ================================================================ */
 let _primary = null;
 
@@ -323,6 +381,7 @@ export const set          = (t, l) => _primary?.set(t, l);
 export const get          = ()    => _primary?.get() ?? '';
 export const focus        = ()    => _primary?.focus();
 export const blur         = ()    => _primary?.blur();
+export const flush        = ()    => _primary?.flush();
 export const insert       = (t, o) => _primary?.insert(t, o);
 export const newline      = ()    => _primary?.newline();
 export const indent       = ()    => _primary?.indent();

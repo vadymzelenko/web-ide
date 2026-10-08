@@ -87,6 +87,43 @@ const mkKey = key => {
     if (key === 'space') b.classList.add('wide');
     if (key === 'dismiss') b.classList.add('accent');
     if (key === 'shift' && shift) b.classList.add('on');
+
+    /* ----- Пробел-трекпад: свайп двигает курсор, тап вставляет пробел ----- */
+    if (key === 'space') {
+        let id = null;
+        let x0 = 0, y0 = 0, ax = 0, ay = 0, moved = false;
+
+        b.addEventListener('pointerdown', e => {
+            e.preventDefault();
+            try { b.setPointerCapture(e.pointerId); } catch {}
+            id = e.pointerId;
+            x0 = ax = e.clientX;
+            y0 = ay = e.clientY;
+            moved = false;
+        });
+        b.addEventListener('pointermove', e => {
+            if (e.pointerId !== id || previewing()) return;
+            if (!moved && Math.hypot(e.clientX - x0, e.clientY - y0) < 8) return;
+            moved = true;
+            const dx = Math.trunc((e.clientX - ax) / 12);   /* 12px ≈ 1 символ */
+            const dy = Math.trunc((e.clientY - ay) / 24);   /* 24px ≈ 1 строка */
+            if (dx) { ed.moveCursor(dx); ax += dx * 12; }
+            if (dy) {
+                for (let i = 0; i < Math.abs(dy); i++) ed.moveLine(dy > 0 ? 1 : -1);
+                ay += dy * 24;
+            }
+        });
+        const end = e => {
+            if (e.pointerId !== id) return;
+            id = null;
+            if (!moved && e.type === 'pointerup' && !previewing()) press('space');
+        };
+        b.addEventListener('pointerup', end);
+        b.addEventListener('pointercancel', end);
+        return b;
+    }
+
+    /* ----- Обычные клавиши ----- */
     b.addEventListener('pointerdown', e => {
         e.preventDefault();
         press(key);
@@ -168,8 +205,7 @@ export function init(hosts) {
         h.addEventListener('focusout', hide);
     });
 
-    /* Терминал использует нативную клавиатуру: inputmode="none" ломает фокус на iOS,
-       а встроенная клавиатура кода не подходит для командной строки. */
+    /* Терминал использует нативную клавиатуру: inputmode="none" ломает фокус на iOS. */
     const cmd = $('#cmd');
     if (cmd) {
         cmd.inputMode = 'text';

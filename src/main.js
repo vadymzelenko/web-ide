@@ -56,6 +56,7 @@ const renderTabs = i => {
 
 /* ---------- save ---------- */
 const save = () => {
+    P[active].api?.flush?.();
     fs.save();
     pv.run();
     P[active].dirty = false;
@@ -205,6 +206,7 @@ $('#zip-exp').onclick = async () => {
 $('#fmt').onclick = async () => {
     const st = P[active];
     if (!st.cur || !st.api) return;
+    st.api.flush?.();
     const btn = $('#fmt');
     btn.disabled = true;
     try {
@@ -333,7 +335,7 @@ const RANGES = [
     { id: 's-kb-h',     key: 'kb-h',     def: kbHeightDefault, fmt: v => v + ' px', apply: applyKb },
     { id: 's-kb-gap',   key: 'kb-gap',   def: () => 3,         fmt: v => v + ' px', apply: applyKb },
     { id: 's-kb-split', key: 'kb-split', def: () => 24,        fmt: v => v + ' px', apply: applyKb },
-    { id: 's-kb-op',    key: 'kb-op',    def: () => 100,       fmt: v => v + '%',   apply: applyKb },
+    { id: 's-kb-op',    key: 'kb-op',    def: () => 60,       fmt: v => v + '%',   apply: applyKb },
     { id: 's-kb-scale', key: 'kb-scale', def: () => 100,       fmt: v => v + '%',   apply: applyKb },
     { id: 's-fs',       key: 'fs',       def: () => 14,        fmt: v => v + ' px', apply: v => ui.fontSize(v) }
 ];
