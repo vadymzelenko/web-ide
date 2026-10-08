@@ -1,5 +1,9 @@
 /* ============================================================
-   WebIDE — design tokens
+   WebIDE — theme.css
+   ============================================================ */
+
+/* ============================================================
+   1. Design tokens
    ============================================================ */
 :root {
     --fs: 14px;
@@ -24,9 +28,9 @@
     --ac-soft: rgba(124,138,255,.14);
     --ac-fg: #ffffff;
 
-    --ok: #4ade80;
+    --ok:   #4ade80;
     --warn: #fbbf24;
-    --err: #f87171;
+    --err:  #f87171;
 
     --syn-kw:  #c792ea;
     --syn-str: #c3e88d;
@@ -41,11 +45,17 @@
     --font-ui: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
-    --h-head: 48px;
+    --h-head: 36px;
     --kb-h: min(300px, 42vh);
+    --kb-gap: 3px;
+    --kb-split: 24px;
+    --kb-op: 1;
+    --kb-scale: 1;
+
     --w1: 224px;
-    --w2: 1fr;
     --w3: 1fr;
+    --h-term: 200px;
+
     --r-sm: 5px;
     --r: 7px;
     --r-lg: 10px;
@@ -63,28 +73,6 @@
     --ac-1: #818cf8;
     --ac-2: #a5b4fc;
     --ac-soft: rgba(129,140,248,.16);
-}
-
-body.ext-kb #keyboard { display: none !important; }
-body.ext-kb main { padding-bottom: 0 !important; }
-body.no-status #status { display: none !important; }
-
-.editor-split { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.editor-split.split { flex-direction: row; gap: 1px; background: var(--bd-1); }
-.ed-pane {
-    flex: 1; min-width: 0; min-height: 0;
-    display: flex; flex-direction: column;
-    background: var(--bg-1);
-    position: relative;
-}
-.ed-pane[hidden] { display: none; }
-.editor-split.split .ed-pane[hidden] { display: flex; }
-.ed-pane.active::after {
-    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
-    background: var(--ac-1); pointer-events: none;
-}
-@media (max-width: 899px), (max-height: 500px) {
-    .editor-split.split { flex-direction: column; }
 }
 
 [data-theme="light"] {
@@ -115,19 +103,23 @@ body.no-status #status { display: none !important; }
     --syn-op:  #0184bc;
 }
 
+body.ext-kb #keyboard { display: none !important; }
+
 /* ============================================================
-   Reset
+   2. Reset
    ============================================================ */
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
 html, body { overscroll-behavior: none; }
 html {
     height: 100%;
     overflow: hidden;
-    touch-action: manipulation;                /* запрет double-tap zoom */
+    touch-action: manipulation;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
 }
-
 body {
     margin: 0;
     padding-left: env(safe-area-inset-left, 0px);
@@ -137,54 +129,128 @@ body {
     background: var(--bg-0);
     color: var(--fg-1);
     font-family: var(--font-ui);
-    font-size: 14px;                           /* --fs управляет только кодом */
+    font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow: hidden;
-    overscroll-behavior: none;
     touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
 }
-
 ::selection { background: var(--ac-soft); color: var(--fg-1); }
+svg { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ============================================================
-   Header
+   3. Unified toolbar
    ============================================================ */
-header {
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     height: calc(var(--h-head) + env(safe-area-inset-top, 0px));
     max-height: calc(var(--h-head) + env(safe-area-inset-top, 0px));
-    display: flex; align-items: center; gap: 4px;
-    padding: env(safe-area-inset-top, 0px) 12px 0;
+    padding: env(safe-area-inset-top, 0px) 6px 0;
     background: var(--bg-1);
     border-bottom: 1px solid var(--bd-1);
     flex-shrink: 0;
     overflow: hidden;
     transition: max-height var(--t), padding var(--t), border-color var(--t);
 }
-header .brand {
-    display: flex; align-items: center; gap: 9px;
-    font-weight: 600; font-size: 13.5px;
-    letter-spacing: -.01em;
-    color: var(--fg-1);
-}
-header .brand svg { flex-shrink: 0; }
-.sp { flex: 1; }
-
-body.header-hidden header {
+body.header-hidden .toolbar {
     max-height: 0;
     padding-top: 0;
     padding-bottom: 0;
     border-bottom-color: transparent;
 }
 
-/* Плавающий бургер для возврата шапки */
+.tb-brand {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 2px;
+    font-weight: 600; font-size: 13px;
+    letter-spacing: -.01em;
+    color: var(--fg-1);
+    flex-shrink: 0;
+}
+.tb-brand svg { flex-shrink: 0; }
+
+.sp { flex: 1; }
+
+/* --- Файловые доки --- */
+.tb-docs {
+    display: flex;
+    align-items: stretch;
+    height: 100%;
+    min-width: 0;
+    flex: 1 1 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+}
+.tb-docs::-webkit-scrollbar { display: none; }
+.tb-docs:empty { display: none; }
+
+.tb-docs button {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 0 9px;
+    height: 100%;
+    background: transparent; border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    color: var(--fg-3);
+    font-size: 11.5px;
+    white-space: nowrap;
+    min-height: 0;
+}
+.tb-docs button:hover { color: var(--fg-1); }
+.tb-docs button.on    { color: var(--fg-1); border-bottom-color: var(--ac-1); }
+.tb-docs .close {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 3px;
+    font-size: 12px; line-height: 1; opacity: 0;
+    color: var(--fg-3);
+}
+.tb-docs button:hover .close,
+.tb-docs button.on .close { opacity: .7; }
+.tb-docs .close:hover { opacity: 1; background: var(--bg-h); color: var(--fg-1); }
+
+/* --- Кнопки режимов (mobile only) --- */
+.tb-modes {
+    display: none;
+    align-items: center;
+    gap: 1px;
+    flex-shrink: 0;
+}
+.tb-modes button {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px;
+    padding: 0;
+    background: transparent; border: none;
+    border-radius: 5px;
+    color: var(--fg-3);
+    min-height: 0;
+}
+.tb-modes button:hover { color: var(--fg-1); background: var(--bg-2); }
+.tb-modes button.on    { color: var(--fg-1); background: var(--ac-soft); }
+.tb-modes button svg   { flex-shrink: 0; }
+
+/* --- Правые action-кнопки --- */
+.tb-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+.tb-actions .ib {
+    width: 30px; height: 30px;
+    border-radius: 5px;
+}
+
+/* Burger — только когда тулбар скрыт */
 .burger {
     display: none;
     position: fixed;
-    top: calc(8px + env(safe-area-inset-top, 0px)); right: 8px;
-    width: 40px; height: 40px;
+    top: calc(6px + env(safe-area-inset-top, 0px));
+    right: 6px;
+    width: 32px; height: 32px;
     z-index: 200;
     background: var(--bg-1);
     border: 1px solid var(--bd-2);
@@ -193,13 +259,15 @@ body.header-hidden header {
     align-items: center; justify-content: center;
     box-shadow: 0 4px 14px rgba(0,0,0,.45);
     cursor: pointer;
-    transition: color var(--t-fast), background var(--t-fast);
+    opacity: .8;
+    transition: color var(--t-fast), background var(--t-fast), opacity var(--t-fast);
 }
-.burger:hover { color: var(--fg-1); background: var(--bg-2); }
+.burger:hover  { color: var(--fg-1); background: var(--bg-2); }
+.burger:active { opacity: 1; }
 body.header-hidden .burger { display: flex; }
 
 /* ============================================================
-   Buttons / inputs
+   4. Buttons / inputs / seg
    ============================================================ */
 button, select, input, textarea {
     font: inherit;
@@ -208,36 +276,35 @@ button, select, input, textarea {
     border: 1px solid var(--bd-2);
     border-radius: var(--r);
     outline: none;
-    transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast);
+    transition: background var(--t-fast), border-color var(--t-fast),
+    color var(--t-fast), transform var(--t-fast);
 }
 button { cursor: pointer; }
 
 .ib {
-    width: 34px; height: 34px; min-height: 0; padding: 0;
+    width: 32px; height: 32px; min-height: 0; padding: 0;
     display: inline-flex; align-items: center; justify-content: center;
     background: transparent; border: 1px solid transparent;
     border-radius: var(--r);
     color: var(--fg-2);
 }
-.ib:hover { background: var(--bg-3); color: var(--fg-1); border-color: var(--bd-1); }
+.ib:hover  { background: var(--bg-3); color: var(--fg-1); border-color: var(--bd-1); }
 .ib:active { transform: scale(.96); }
-.ib.sm { width: 28px; height: 28px; border-radius: var(--r-sm); }
-.ib.primary { background: var(--ac-1); color: var(--ac-fg); }
-.ib.primary:hover { background: var(--ac-2); border-color: transparent; }
+.ib.sm     { width: 28px; height: 28px; border-radius: var(--r-sm); }
+.ib.primary         { background: var(--ac-1); color: var(--ac-fg); }
+.ib.primary:hover   { background: var(--ac-2); border-color: transparent; }
 
 .btn {
-    min-height: 34px; padding: 0 14px;
+    min-height: 32px; padding: 0 14px;
     display: inline-flex; align-items: center; gap: 6px;
     border-radius: var(--r);
     font-size: 13px; font-weight: 500;
 }
-.btn:hover { background: var(--bg-3); border-color: var(--bd-3); }
-.btn.primary { background: var(--ac-1); color: var(--ac-fg); border-color: transparent; font-weight: 600; }
+.btn:hover         { background: var(--bg-3); border-color: var(--bd-3); }
+.btn.primary       { background: var(--ac-1); color: var(--ac-fg); border-color: transparent; font-weight: 600; }
 .btn.primary:hover { background: var(--ac-2); }
-.btn.danger { background: transparent; color: var(--err); border-color: var(--bd-2); }
-.btn.danger:hover { background: color-mix(in srgb, var(--err) 12%, transparent); border-color: var(--err); }
-
-svg { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.btn.danger        { background: transparent; color: var(--err); border-color: var(--bd-2); }
+.btn.danger:hover  { background: color-mix(in srgb, var(--err) 12%, transparent); border-color: var(--err); }
 
 .seg {
     display: inline-flex; align-items: center;
@@ -253,10 +320,10 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round
     display: inline-flex; align-items: center; justify-content: center;
 }
 .seg button:hover { color: var(--fg-1); background: var(--bg-3); }
-.seg button.on { background: var(--bg-h); color: var(--fg-1); }
+.seg button.on    { background: var(--bg-h); color: var(--fg-1); }
 
 /* ============================================================
-   Main / sections
+   5. Main / sections
    ============================================================ */
 main {
     flex: 1; min-height: 0;
@@ -270,30 +337,33 @@ section {
     background: var(--bg-1);
     position: relative;
 }
-section.on { display: flex; }
+section.on   { display: flex; }
 section.full { position: fixed; inset: 0; z-index: 100; }
 
 .panel-head {
-    height: 40px; flex-shrink: 0;
+    height: 34px; flex-shrink: 0;
     display: flex; align-items: center; gap: 6px;
-    padding: 0 8px 0 14px;
+    padding: 0 6px 0 12px;
     border-bottom: 1px solid var(--bd-1);
     background: var(--bg-1);
 }
 .panel-title {
-    font-size: 11px; font-weight: 600;
+    font-size: 10.5px; font-weight: 600;
     letter-spacing: .06em; text-transform: uppercase;
     color: var(--fg-3);
 }
 
 /* ============================================================
-   File tree
+   6. File tree
    ============================================================ */
 #tree {
     list-style: none; margin: 0; padding: 6px;
     overflow-y: auto; flex: 1;
     scrollbar-width: thin;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
 }
+#tree * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #tree::-webkit-scrollbar { width: 8px; }
 #tree::-webkit-scrollbar-thumb { background: var(--bd-2); border-radius: 4px; }
 #tree::-webkit-scrollbar-thumb:hover { background: var(--bd-3); }
@@ -303,10 +373,11 @@ section.full { position: fixed; inset: 0; z-index: 100; }
     border-radius: var(--r-sm);
     padding: 0 4px;
     margin: 1px 0;
+    min-height: 26px;
     cursor: pointer;
     transition: background var(--t-fast);
 }
-#tree li:hover { background: var(--bg-3); }
+#tree li:hover  { background: var(--bg-3); }
 #tree li.active { background: var(--ac-soft); }
 #tree li.active .n { color: var(--fg-1); }
 
@@ -315,16 +386,17 @@ section.full { position: fixed; inset: 0; z-index: 100; }
     text-align: left;
     border: 0; background: none;
     color: var(--fg-2);
-    height: 28px;
+    height: 26px;
     padding: 0 6px;
     gap: 8px;
     display: flex; align-items: center;
-    font-size: 13px;
+    font-size: 12.5px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     border-radius: var(--r-sm);
+    -webkit-tap-highlight-color: transparent;
 }
 #tree .n:hover { background: transparent; color: var(--fg-1); }
-#tree .n svg { flex-shrink: 0; }
+#tree .n svg   { flex-shrink: 0; }
 #tree .n .icon-html { color: #e44d26; }
 #tree .n .icon-css  { color: #2965f1; }
 #tree .n .icon-js   { color: #f7df1e; }
@@ -333,73 +405,109 @@ section.full { position: fixed; inset: 0; z-index: 100; }
 #tree .n .icon-dir  { color: var(--ac-2); }
 
 /* ============================================================
-   Tabs
+   7. Editor tabs (desktop, per-pane)
    ============================================================ */
 .tabbar {
     flex-shrink: 0;
     display: flex; align-items: stretch;
-    height: 38px;
-    padding: 0 8px;
-    gap: 1px;
+    height: 28px;
+    padding: 0 6px;
+    gap: 0;
     background: var(--bg-1);
     border-bottom: 1px solid var(--bd-1);
-    overflow-x: auto; scrollbar-width: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
 }
 .tabbar::-webkit-scrollbar { display: none; }
 .tabbar button {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 0 10px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 0 9px;
     height: 100%;
     background: transparent; border: none;
     border-bottom: 2px solid transparent;
     color: var(--fg-3);
-    font-size: 12.5px;
+    font-size: 11.5px;
     white-space: nowrap;
     border-radius: 0;
     min-height: 0;
     position: relative;
 }
 .tabbar button:hover { color: var(--fg-1); }
-.tabbar button.on { color: var(--fg-1); border-bottom-color: var(--ac-1); background: linear-gradient(to bottom, transparent 60%, var(--ac-soft)); }
+.tabbar button.on {
+    color: var(--fg-1);
+    border-bottom-color: var(--ac-1);
+    background: linear-gradient(to bottom, transparent 65%, var(--ac-soft));
+}
 .tabbar .close {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 16px; height: 16px; border-radius: 3px;
-    opacity: 0; font-size: 14px; line-height: 1;
+    width: 14px; height: 14px; border-radius: 3px;
+    opacity: 0; font-size: 12px; line-height: 1;
     color: var(--fg-3);
 }
 .tabbar button:hover .close,
-.tabbar button.on .close { opacity: .7; }
+.tabbar button.on .close    { opacity: .7; }
 .tabbar .close:hover { opacity: 1; background: var(--bg-h); color: var(--fg-1); }
 
 /* ============================================================
-   Editor + status
+   8. Editor + vertical split
    ============================================================ */
-#ed { flex: 1; overflow: hidden; min-height: 0; background: var(--bg-1); }
-#ed .cm-editor { height: 100%; width: 100%; font-size: var(--fs); background: var(--bg-1); }
-#ed .cm-scroller { font-family: var(--font-mono); }
-#ed .cm-editor.cm-focused { outline: none; }
-
-#status {
-    height: 24px; flex-shrink: 0;
-    display: flex; align-items: center; gap: 14px;
-    padding: 0 12px;
-    background: var(--bg-1);
-    border-top: 1px solid var(--bd-1);
-    color: var(--fg-3);
-    font-size: 11.5px;
-    font-family: var(--font-mono);
+.editor-split {
+    flex: 1; min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--bd-1);
 }
-#status .st-item { display: inline-flex; align-items: center; gap: 5px; }
-#status #st-file { color: var(--fg-2); font-weight: 500; font-family: var(--font-ui); font-size: 11px; }
-#status #st-saved.dirty { color: var(--warn); }
-#status #st-saved.dirty svg { display: none; }
+.ed-pane {
+    flex: 1 1 0; min-width: 0; min-height: 0;
+    display: flex; flex-direction: column;
+    background: var(--bg-1);
+    position: relative;
+}
+.ed-pane[hidden] { display: none; }
+.editor-split.split .ed-pane[hidden] { display: flex; }
+
+.ed-pane.active::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 2px;
+    background: var(--ac-1);
+    pointer-events: none;
+    z-index: 5;
+}
+
+#ed, #ed2 {
+    flex: 1; overflow: hidden; min-height: 0;
+    background: var(--bg-1);
+    contain: layout paint;
+}
+#ed  .cm-editor, #ed2 .cm-editor {
+    height: 100%; width: 100%;
+    font-size: var(--fs);
+    background: var(--bg-1);
+}
+#ed  .cm-editor.cm-focused,
+#ed2 .cm-editor.cm-focused { outline: none; }
+#ed  .cm-scroller,
+#ed2 .cm-scroller { font-family: var(--font-mono); }
+
+.cm-scroller {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+.cm-scroller::-webkit-scrollbar { width: 8px; height: 8px; }
+.cm-scroller::-webkit-scrollbar-thumb { background: var(--bd-2); border-radius: 4px; }
+.cm-scroller::-webkit-scrollbar-thumb:hover { background: var(--bd-3); }
 
 /* ============================================================
-   Preview
+   9. Preview
    ============================================================ */
 .preview-stage {
     flex: 1; min-height: 0;
-    padding: 12px;
+    padding: 10px;
     display: flex; align-items: stretch; justify-content: center;
     background:
             linear-gradient(var(--bd-1) 1px, transparent 1px) 0 0 / 20px 20px,
@@ -431,11 +539,11 @@ section.full { position: fixed; inset: 0; z-index: 100; }
 .preview-stage.updating #pv-badge { opacity: 1; }
 
 /* ============================================================
-   Terminal
+   10. Terminal
    ============================================================ */
 #out {
     flex: 1; overflow-y: auto;
-    padding: 12px 14px;
+    padding: 10px 12px;
     font-family: var(--font-mono);
     font-size: 12.5px;
     line-height: 1.55;
@@ -445,14 +553,14 @@ section.full { position: fixed; inset: 0; z-index: 100; }
 }
 #out::-webkit-scrollbar { width: 8px; }
 #out::-webkit-scrollbar-thumb { background: var(--bd-2); border-radius: 4px; }
-#out > div { white-space: pre-wrap; }
+#out > div  { white-space: pre-wrap; }
 #out .t-cmd { color: var(--ac-2); }
 #out .t-err { color: var(--err); }
 #out .t-dim { color: var(--fg-3); }
 
 .term-input-wrap {
     display: flex; align-items: center; gap: 8px;
-    padding: 8px 14px;
+    padding: 6px 12px;
     border-top: 1px solid var(--bd-1);
     background: var(--bg-1);
 }
@@ -463,7 +571,7 @@ section.full { position: fixed; inset: 0; z-index: 100; }
     font-size: 13px;
 }
 #cmd {
-    flex: 1; min-height: 30px;
+    flex: 1; min-height: 28px;
     border: none; background: transparent;
     padding: 0;
     font-family: var(--font-mono);
@@ -473,7 +581,7 @@ section.full { position: fixed; inset: 0; z-index: 100; }
 #cmd::placeholder { color: var(--fg-4); }
 
 /* ============================================================
-   Context menu
+   11. Context menu
    ============================================================ */
 .ctx-menu {
     display: none; position: fixed; z-index: 1000;
@@ -492,14 +600,15 @@ section.full { position: fixed; inset: 0; z-index: 100; }
     border-radius: var(--r-sm);
     font-size: 13px;
     color: var(--fg-2);
+    min-height: 0;
 }
-.ctx-menu button:hover { background: var(--bg-h); color: var(--fg-1); }
+.ctx-menu button:hover        { background: var(--bg-h); color: var(--fg-1); }
 .ctx-menu button.danger:hover { background: color-mix(in srgb, var(--err) 15%, transparent); color: var(--err); }
-.ctx-menu button svg { color: var(--fg-3); }
-.ctx-menu button:hover svg { color: currentColor; }
+.ctx-menu button svg          { color: var(--fg-3); }
+.ctx-menu button:hover svg    { color: currentColor; }
 
 /* ============================================================
-   Dialogs
+   12. Dialogs
    ============================================================ */
 dialog {
     background: var(--bg-2);
@@ -512,17 +621,21 @@ dialog {
     box-shadow: 0 24px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.03);
     font-family: var(--font-ui);
 }
-dialog::backdrop { background: rgba(0,0,0,.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+dialog::backdrop {
+    background: rgba(0,0,0,.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
 .dialog-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px;
+    padding: 12px 14px;
     border-bottom: 1px solid var(--bd-1);
 }
 .dialog-header h3 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
-.dialog-body { padding: 16px; }
+.dialog-body { padding: 14px; }
 .dialog-body label {
     display: block;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     font-size: 12.5px;
     color: var(--fg-2);
     font-weight: 500;
@@ -532,7 +645,7 @@ dialog::backdrop { background: rgba(0,0,0,.6); backdrop-filter: blur(6px); -webk
 .dialog-body label select {
     width: 100%;
     margin-top: 6px;
-    min-height: 36px;
+    min-height: 34px;
     padding: 0 10px;
     background: var(--bg-1);
 }
@@ -540,6 +653,8 @@ dialog::backdrop { background: rgba(0,0,0,.6); backdrop-filter: blur(6px); -webk
     display: flex; align-items: center; gap: 10px;
     color: var(--fg-1);
     cursor: pointer;
+    padding: 5px 0;
+    margin-bottom: 4px;
 }
 .dialog-body label.row input[type="checkbox"] {
     appearance: none; -webkit-appearance: none;
@@ -570,7 +685,89 @@ dialog::backdrop { background: rgba(0,0,0,.6); backdrop-filter: blur(6px); -webk
 }
 
 /* ============================================================
-   Resizers
+   13. Settings dialog
+   ============================================================ */
+dialog#set {
+    width: min(460px, calc(100vw - 16px));
+    max-height: calc(var(--vh, 100dvh) - 24px);
+    overflow: hidden;
+}
+dialog#set[open] { display: flex; flex-direction: column; }
+dialog#set .dialog-body.scroll {
+    flex: 1; min-height: 0;
+    overflow-y: auto; overscroll-behavior: contain;
+    scrollbar-width: thin;
+}
+dialog#set .dialog-actions.foot {
+    margin: 0; padding: 12px 14px;
+    border-top: 1px solid var(--bd-1);
+    background: var(--bg-2);
+}
+
+.set-group { margin-bottom: 18px; }
+.set-group:last-child { margin-bottom: 4px; }
+.set-group > h4 {
+    margin: 0 0 12px;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--fg-3);
+}
+.set-group .hint { margin: -4px 0 14px; font-size: 12px; line-height: 1.45; color: var(--fg-3); }
+.set-group .btn  { margin-top: 4px; }
+
+.field { margin-bottom: 14px; }
+.field-top {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 12.5px; font-weight: 500; color: var(--fg-2);
+}
+.field-top output { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-1); }
+
+dialog input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    display: block; width: 100%; height: 26px;
+    margin: 0; padding: 0;
+    background: transparent; border: 0;
+    touch-action: pan-y;
+}
+dialog input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 2px; background: var(--bd-3);
+}
+dialog input[type="range"]::-moz-range-track {
+    height: 4px; border-radius: 2px; background: var(--bd-3);
+}
+dialog input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px; margin-top: -8px;
+    border-radius: 50%;
+    background: var(--ac-1); border: 3px solid var(--bg-2);
+    box-shadow: 0 0 0 1px var(--bd-3), 0 2px 6px rgba(0,0,0,.4);
+}
+dialog input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ac-1); border: 3px solid var(--bg-2);
+}
+
+.seg-lg {
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px;
+    padding: 3px;
+    background: var(--bg-1);
+    border: 1px solid var(--bd-1);
+    border-radius: var(--r);
+}
+.seg-lg button {
+    min-height: 32px; padding: 0 8px;
+    border: 0; background: transparent;
+    color: var(--fg-2);
+    border-radius: var(--r-sm);
+    font-size: 13px; font-weight: 500;
+}
+.seg-lg button:hover { color: var(--fg-1); background: var(--bg-3); }
+.seg-lg button.on    { background: var(--bg-h); color: var(--fg-1); box-shadow: inset 0 0 0 1px var(--bd-2); }
+
+/* ============================================================
+   14. Resizers
    ============================================================ */
 .rz {
     display: none;
@@ -603,16 +800,7 @@ dialog::backdrop { background: rgba(0,0,0,.6); backdrop-filter: blur(6px); -webk
 }
 
 /* ============================================================
-   Mobile nav
-   ============================================================ */
-nav {
-    display: none;
-    border-top: 1px solid var(--bd-1);
-    background: var(--bg-1);
-}
-
-/* ============================================================
-   Custom keyboard — кастомная клавиатура кода
+   15. Keyboard (custom, transparent)
    ============================================================ */
 #keyboard {
     display: none;
@@ -623,10 +811,11 @@ nav {
     height: var(--kb-h);
     padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
     flex-direction: column;
-    gap: 3px;
-    background: var(--bg-2);
+    gap: var(--kb-gap);
+    background: color-mix(in srgb, var(--bg-2) 82%, transparent);
     border-top: 1px solid var(--bd-2);
-    box-shadow: 0 -8px 24px rgba(0,0,0,.35);
+    box-shadow: none;
+    opacity: var(--kb-op);
     z-index: 120;
     touch-action: manipulation;
     -webkit-user-select: none; user-select: none;
@@ -635,106 +824,52 @@ body.typing #keyboard,
 body.kb-preview #keyboard { display: flex; }
 
 #keyboard .kb-row {
-    flex: 1;
-    min-height: 0;
+    flex: 1; min-height: 0;
     display: flex;
-    gap: var(--kb-gap, 3px);
+    gap: var(--kb-gap);
 }
 #keyboard button {
-    flex: 1;
-    min-width: 0;
-    padding: 0;
+    flex: 1; min-width: 0; padding: 0;
     display: flex; align-items: center; justify-content: center;
-    border: 1px solid transparent;
+    border: 1px solid color-mix(in srgb, var(--bd-2) 60%, transparent);
     border-radius: 6px;
-    background: var(--bg-3);
+    background: color-mix(in srgb, var(--bg-3) 72%, transparent);
     color: var(--fg-1);
     font-family: var(--font-mono);
-    font-size: 16px;
+    font-size: calc(16px * var(--kb-scale));
     font-weight: 500;
+    min-height: 0;
     transition: background var(--t-fast), transform var(--t-fast);
 }
-#keyboard button:active { background: var(--ac-soft); transform: scale(.94); }
-#keyboard button.wide { flex: 4; }
-#keyboard button.fn { background: var(--bg-h); color: var(--fg-2); font-size: 13px; }
-#keyboard button.fn.accent { color: var(--ac-1); }
-#keyboard button.on { background: var(--ac-1); color: var(--ac-fg); }
-
+#keyboard button:active        { background: var(--ac-soft); transform: scale(.94); }
+#keyboard button.wide          { flex: 4; }
+#keyboard button.fn            { background: color-mix(in srgb, var(--bg-h) 72%, transparent); color: var(--fg-2); font-size: calc(13px * var(--kb-scale)); }
+#keyboard button.fn.accent     { color: var(--ac-1); }
+#keyboard button.on            { background: var(--ac-1); color: var(--ac-fg); }
 
 #keyboard .kb-split {
     flex: 1; min-height: 0;
     display: flex;
-    gap: 18px;
+    gap: var(--kb-split);
 }
 #keyboard .kb-half {
-    flex: 1; min-width: 0;
+    flex: 1 1 0; min-width: 0;
     display: flex; flex-direction: column;
-    gap: var(--kb-gap, 3px);
+    gap: var(--kb-gap);
 }
-#keyboard.split .kb-half .kb-row { flex: 1; min-height: 0; }
-#keyboard.split .kb-half button.wide { flex: 2; }   /* ␣ не раздувается */
+#keyboard.split .kb-half .kb-row  { flex: 1; min-height: 0; }
+#keyboard.split .kb-half button.wide { flex: 2; }
 
-/* Полноэкранный редактор во время ввода */
 body.typing main { padding-bottom: var(--kb-h); }
 
-/* Компактнее в ландшафте — нативная клава там съедала 60-70% экрана */
 @media (orientation: landscape) and (max-height: 500px) {
-    :root { --kb-h: min(160px, 55vh); }
-    #keyboard button { font-size: 13px; border-radius: 4px; }
-    #keyboard button.fn { font-size: 11px; }
+    #keyboard button      { border-radius: 4px; }
+    #keyboard button.fn   { font-size: calc(11px * var(--kb-scale)); }
 }
 
-.section-tabs {
-    display: none;
-    flex-shrink: 0;
-    background: var(--bg-1);
-    border-bottom: 1px solid var(--bd-1);
-    padding: 0 4px;
-    overflow-x: auto;
-    scrollbar-width: none;
-}
-.section-tabs::-webkit-scrollbar { display: none; }
-.section-tabs button {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 11px 12px;
-    background: transparent;
-    border: 0;
-    border-bottom: 2px solid transparent;
-    color: var(--fg-3);
-    font-size: 12.5px;
-    font-weight: 500;
-    white-space: nowrap;
-    border-radius: 0;
-    min-height: 0;
-}
-.section-tabs button.on {
-    color: var(--fg-1);
-    border-bottom-color: var(--ac-1);
-    background: linear-gradient(to bottom, transparent 65%, var(--ac-soft));
-}
-.section-tabs button svg { opacity: .8; }
-.section-tabs button.on svg { opacity: 1; color: var(--ac-1); }
-
-@media (max-width: 899px), (max-height: 500px) {
-    .section-tabs { display: flex; }
-    nav { display: none !important; }
-}
-
-:root {
-    --kb-h: min(300px, 42vh);
-    --kb-gap: 3px;
-    --kb-op: 1;
-    --kb-scale: 1;
-}
-#keyboard {
-    /* было 3px → берём переменную */
-    gap: var(--kb-gap);
-    opacity: var(--kb-op);
-}
-#keyboard button { font-size: calc(16px * var(--kb-scale)); }
-#keyboard .kb-split { gap: calc(18px * var(--kb-scale)); }
-
-
+/* ============================================================
+   16. Menu popup
+   ============================================================ */
 .menu-popup {
     position: fixed;
     top: calc(var(--h-head) + env(safe-area-inset-top, 0px) + 6px);
@@ -753,16 +888,16 @@ body.typing main { padding-bottom: var(--kb-h); }
 .menu-popup.on { display: flex; }
 .menu-popup button {
     display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px;
+    padding: 9px 11px;
     background: transparent; border: 0;
     border-radius: var(--r-sm);
     text-align: left;
     color: var(--fg-2);
     font-size: 13px;
-    min-height: 40px;
+    min-height: 38px;
 }
 .menu-popup button:hover { background: var(--bg-h); color: var(--fg-1); }
-.menu-popup button svg { flex-shrink: 0; color: var(--fg-3); }
+.menu-popup button svg   { flex-shrink: 0; color: var(--fg-3); }
 .menu-popup hr {
     border: 0;
     border-top: 1px solid var(--bd-1);
@@ -774,13 +909,13 @@ body.typing main { padding-bottom: var(--kb-h); }
 }
 
 /* ============================================================
-   Desktop
+   17. Desktop grid
    ============================================================ */
 @media (min-width: 900px) and (min-height: 501px) {
     main {
         display: grid;
         grid-template-columns: var(--w1) minmax(0, 1fr) var(--w3);
-        grid-template-rows: minmax(0, 1fr) var(--h-term, 200px);
+        grid-template-rows: minmax(0, 1fr) var(--h-term);
         grid-template-areas:
             "files editor   preview"
             "files terminal preview";
@@ -794,43 +929,39 @@ body.typing main { padding-bottom: var(--kb-h); }
     [data-p="editor"]   { grid-area: editor;   border-bottom: 1px solid var(--bd-1); }
     [data-p="terminal"] { grid-area: terminal; position: relative; }
     [data-p="preview"]  { grid-area: preview;  border-left: 1px solid var(--bd-1); }
-    nav { display: none !important; }
-    #keyboard { display: none !important; }
-    .rz  { display: block; }
-    .rz-h { display: block; }
 
-    /* Скрытый проводник */
-    main.files-hidden {
-        grid-template-columns: 0 minmax(0, 1fr) var(--w3);
-    }
+    #keyboard { display: none !important; }
+    .rz, .rz-h { display: block; }
+
+    main.files-hidden { grid-template-columns: 0 minmax(0, 1fr) var(--w3); }
     main.files-hidden [data-p="files"] { display: none !important; }
 
-    /* Скрытый терминал */
-    main.term-hidden {
-        grid-template-rows: minmax(0, 1fr) 0;
-    }
+    main.term-hidden  { grid-template-rows: minmax(0, 1fr) 0; }
     main.term-hidden [data-p="terminal"] { display: none !important; }
-    main.files-hidden.term-hidden {
-        grid-template-rows: minmax(0, 1fr);
-    }
+    main.files-hidden.term-hidden { grid-template-rows: minmax(0, 1fr); }
 }
 
-
-
 /* ============================================================
-   Mobile
+   18. Mobile layout
    ============================================================ */
 @media (max-width: 899px), (max-height: 500px) {
-    header { padding: env(safe-area-inset-top, 0px) 8px 0; gap: 2px; }
-    header .brand span { display: none; }
+    /* В тулбаре показываем режимы, прячем вторичные действия */
+    .tb-modes { display: flex; }
+    .tb-brand span { display: none; }
+    #split-btn,
+    #save { display: none; }
+    .tb-actions .ib { width: 32px; height: 32px; }
+    .tb-modes button { width: 32px; height: 32px; }
+
+    /* Внутренние .tabbar скрыты — их роль выполняет .tb-docs */
+    .tabbar { display: none; }
 
     main { display: block; }
     section { height: 100%; }
-    section.on { display: flex; }
-    section:not(.on) { display: none; }
+    section.on        { display: flex; }
+    section:not(.on)  { display: none; }
 
-    /* Лист «Файлы». Селектор специфичнее section:not(.on), иначе он остаётся display:none.
-       Прячем через visibility+transform, чтобы работала анимация. */
+    /* Лист «Файлы» */
     main > section[data-p="files"] {
         display: flex;
         position: fixed;
@@ -861,62 +992,37 @@ body.typing main { padding-bottom: var(--kb-h); }
         border-radius: 2px; background: var(--bd-3);
     }
 
-    nav {
-        display: flex;
-        padding: 4px 0 max(4px, env(safe-area-inset-bottom));
-        gap: 0;
-    }
-    nav button {
-        flex: 1;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        gap: 3px;
-        min-height: 54px;
-        background: transparent; border: none; border-radius: 0;
-        color: var(--fg-3);
-        font-size: 10px;
-        font-weight: 500;
-        padding: 0;
-        transition: color var(--t-fast);
-    }
-    nav button span { font-size: 10px; letter-spacing: .01em; }
-    nav button:active { background: var(--bg-2); }
-    nav button.on {
-        color: var(--ac-1);
-        background: linear-gradient(to top, var(--ac-soft) 0%, transparent 60%);
-    }
-    nav button.on svg { filter: drop-shadow(0 0 6px var(--ac-1)); }
+    /* Тач-зоны */
+    .panel-head        { height: 42px; padding: 0 6px 0 10px; }
+    .panel-head .ib.sm { width: 40px; height: 40px; border-radius: var(--r); }
+    .panel-head .ib.sm svg { width: 18px; height: 18px; }
+    .seg button        { width: 36px; height: 36px; }
+    .seg button svg    { width: 18px; height: 18px; }
+
+    #tree li  { margin: 2px 0; border-radius: var(--r); min-height: 40px; }
+    #tree .n  { height: 40px; font-size: 14px; gap: 10px; }
 
     .preview-stage { padding: 8px; }
-    .tabbar { padding: 0 4px; }
-    #status { font-size: 11px; padding: 0 10px; gap: 10px; }
 
-    /* Tap-зоны: минимум 44×44 */
-    header .ib { width: 40px; height: 40px; }
+    .ctx-menu        { min-width: 220px; }
+    .ctx-menu button { padding: 12px 14px; font-size: 15px; gap: 12px; }
 
-    #tree li { margin: 2px 0; border-radius: var(--r); }
-    #tree .n { height: 44px; font-size: 15px; gap: 10px; }
-
-    .panel-head { height: 48px; padding: 0 6px 0 10px; }
-    .panel-head .ib.sm { width: 44px; height: 44px; border-radius: var(--r); }
-    .panel-head .ib.sm svg { width: 18px; height: 18px; }
-
-    .seg button { width: 40px; height: 40px; }
-    .seg button svg { width: 18px; height: 18px; }
-
-    .tabbar { height: 44px; }
-    .tabbar button { font-size: 14px; padding: 0 12px; }
-    .tabbar .close { width: 28px; height: 28px; opacity: .7; font-size: 18px; }
-
-    .ctx-menu { min-width: 220px; }
-    .ctx-menu button { padding: 13px 14px; font-size: 15px; gap: 12px; }
-
-    .btn { min-height: 44px; padding: 0 18px; font-size: 14px; }
+    .btn { min-height: 42px; padding: 0 18px; font-size: 14px; }
 
     .cm-tooltip-autocomplete ul li { font-size: 15px; }
+
+    /* Настройки сверху */
+    dialog#set {
+        position: fixed; top: 8px; bottom: auto; left: 0; right: 0;
+        margin: 0 auto; z-index: 130;
+    }
+    body.kb-preview dialog#set { max-height: calc(var(--vh, 100dvh) - var(--kb-h) - 20px); }
+    .seg-lg button         { min-height: 42px; }
+    .dialog-body label.row { padding: 9px 0; }
 }
 
 /* ============================================================
-   Drop overlay
+   19. Drop overlay + scrim
    ============================================================ */
 #drop-overlay {
     position: fixed; inset: 0;
@@ -934,8 +1040,17 @@ body.typing main { padding-bottom: var(--kb-h); }
 #drop-overlay.on { display: flex; }
 #drop-overlay .drop-sub { font-size: 12px; color: var(--fg-2); font-weight: 400; }
 
+#scrim {
+    position: fixed; inset: 0; z-index: 85;
+    background: rgba(0,0,0,.5);
+    opacity: 0; visibility: hidden;
+    transition: opacity var(--t), visibility 0s linear var(--t);
+}
+body.sheet-open #scrim,
+body.settings-open #scrim { opacity: 1; visibility: visible; transition-delay: 0s; }
+
 /* ============================================================
-   Toast
+   20. Toast
    ============================================================ */
 #toast {
     position: fixed;
@@ -954,129 +1069,45 @@ body.typing main { padding-bottom: var(--kb-h); }
     z-index: 10000;
     max-width: 80vw;
 }
-#toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.on  { opacity: 1; transform: translateX(-50%) translateY(0); }
 #toast.err { border-color: var(--err); color: var(--err); }
 #toast.ok  { border-color: var(--ok);  color: var(--ok); }
 
-/* Второй редактор */
-#ed2 { flex: 1; overflow: hidden; min-height: 0; background: var(--bg-1); }
-#ed2 .cm-editor { height: 100%; width: 100%; font-size: var(--fs); background: var(--bg-1); }
-#ed2 .cm-scroller { font-family: var(--font-mono); }
-#ed2 .cm-editor.cm-focused { outline: none; }
-
 
 /* ============================================================
-   v2 — стабильный скролл, оверлеи, настройки
+   Preview zoom controls
    ============================================================ */
-
-/* Скролл кода изолирован: не тянет за собой страницу и не вызывает пересчёт соседей */
-#ed, #ed2 { contain: layout paint; }
-.cm-scroller {
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-}
-.cm-scroller::-webkit-scrollbar { width: 8px; height: 8px; }
-.cm-scroller::-webkit-scrollbar-thumb { background: var(--bd-2); border-radius: 4px; }
-.cm-scroller::-webkit-scrollbar-thumb:hover { background: var(--bd-3); }
-.tabbar { overscroll-behavior-x: contain; }
-
-/* Затемнение за листом файлов и настройками */
-#scrim {
-    position: fixed; inset: 0; z-index: 85;
-    background: rgba(0,0,0,.5);
-    opacity: 0; visibility: hidden;
-    transition: opacity var(--t), visibility 0s linear var(--t);
-}
-body.sheet-open #scrim,
-body.settings-open #scrim { opacity: 1; visibility: visible; transition-delay: 0s; }
-
-/* Бургер: меньше и спокойнее, чтобы не перекрывать вкладки */
-.burger { width: 34px; height: 34px; top: calc(6px + env(safe-area-inset-top, 0px)); right: 6px; opacity: .8; }
-.burger svg { width: 18px; height: 18px; }
-.burger:active { opacity: 1; }
-
-/* ---------- Диалог настроек ---------- */
-dialog#set { width: min(460px, calc(100vw - 16px)); max-height: calc(var(--vh, 100dvh) - 24px); overflow: hidden; }
-dialog#set[open] { display: flex; flex-direction: column; }
-dialog#set .dialog-body.scroll {
-    flex: 1; min-height: 0;
-    overflow-y: auto; overscroll-behavior: contain;
-    scrollbar-width: thin;
-}
-dialog#set .dialog-actions.foot {
-    margin: 0; padding: 12px 16px;
-    border-top: 1px solid var(--bd-1);
+.zoom {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
     background: var(--bg-2);
+    border: 1px solid var(--bd-1);
+    border-radius: var(--r-sm);
+    padding: 2px;
 }
-
-.set-group { margin-bottom: 20px; }
-.set-group:last-child { margin-bottom: 4px; }
-.set-group > h4 {
-    margin: 0 0 12px;
-    font-size: 11px; font-weight: 600;
-    letter-spacing: .06em; text-transform: uppercase;
+.zoom .ib {
+    width: 24px; height: 22px;
+    border-radius: 3px;
     color: var(--fg-3);
 }
-.set-group .hint { margin: -4px 0 14px; font-size: 12px; line-height: 1.45; color: var(--fg-3); }
-.set-group .btn { margin-top: 4px; }
-
-.field { margin-bottom: 14px; }
-.field-top {
-    display: flex; align-items: baseline; justify-content: space-between;
-    margin-bottom: 6px;
-    font-size: 12.5px; font-weight: 500; color: var(--fg-2);
-}
-.field-top output { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-1); }
-
-dialog input[type="range"] {
-    -webkit-appearance: none; appearance: none;
-    display: block; width: 100%; height: 28px;
-    margin: 0; padding: 0;
-    background: transparent; border: 0;
-    touch-action: pan-y;
-}
-dialog input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--bd-3); }
-dialog input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--bd-3); }
-dialog input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 22px; height: 22px; margin-top: -9px;
-    border-radius: 50%;
-    background: var(--ac-1); border: 3px solid var(--bg-2);
-    box-shadow: 0 0 0 1px var(--bd-3), 0 2px 6px rgba(0,0,0,.4);
-}
-dialog input[type="range"]::-moz-range-thumb {
-    width: 16px; height: 16px;
-    border-radius: 50%;
-    background: var(--ac-1); border: 3px solid var(--bg-2);
-}
-
-.seg-lg {
-    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px;
-    padding: 3px;
-    background: var(--bg-1);
-    border: 1px solid var(--bd-1);
-    border-radius: var(--r);
-}
-.seg-lg button {
-    min-height: 34px; padding: 0 8px;
-    border: 0; background: transparent;
+.zoom .ib:hover { color: var(--fg-1); background: var(--bg-3); }
+.zoom .zoom-val {
+    min-width: 44px;
+    width: auto;
+    padding: 0 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
     color: var(--fg-2);
-    border-radius: var(--r-sm);
-    font-size: 13px; font-weight: 500;
 }
-.seg-lg button:hover { color: var(--fg-1); background: var(--bg-3); }
-.seg-lg button.on { background: var(--bg-h); color: var(--fg-1); box-shadow: inset 0 0 0 1px var(--bd-2); }
+.zoom .zoom-val:hover { color: var(--fg-1); }
 
-.dialog-body label.row { padding: 5px 0; margin-bottom: 4px; }
+/* Если превью вылезает за пределы контейнера при зуме >100% — даём скролл */
+.preview-stage { overflow: auto; }
 
 @media (max-width: 899px), (max-height: 500px) {
-    /* Настройки сверху, клавиатура остаётся видимой снизу */
-    dialog#set {
-        position: fixed; top: 8px; bottom: auto; left: 0; right: 0;
-        margin: 0 auto; z-index: 130;
-    }
-    body.kb-preview dialog#set { max-height: calc(var(--vh, 100dvh) - var(--kb-h) - 20px); }
-    .seg-lg button { min-height: 42px; }
-    .dialog-body label.row { padding: 9px 0; }
+    .zoom .ib { width: 32px; height: 30px; }
+    .zoom .zoom-val { min-width: 50px; font-size: 12px; }
 }
+

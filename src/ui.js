@@ -141,6 +141,13 @@ const menuFor = (q, n, dir, change) => {
                 }
             }}
     ];
+    if (!dir && navigator.share) items.splice(1, 0, { label: 'Поделиться', icon: svgFile, action: async () => {
+            try {
+                const f = new File([fs.state.files[q] ?? ''], n, { type: 'text/plain' });
+                if (navigator.canShare?.({ files: [f] })) await navigator.share({ files: [f], title: n });
+                else await navigator.share({ title: n, text: fs.state.files[q] ?? '' });
+            } catch (e) { if (e.name !== 'AbortError') toast('Поделиться: ' + e.message, 'err'); }
+        }});
     if (dir) items.unshift({ label: 'Новый файл', icon: svgFile, action: async () => {
             const v = await prompt('Имя файла');
             if (v) { fs.write(q + '/' + v); change(); }
@@ -176,56 +183,202 @@ document.addEventListener('click', () => {
 });
 
 /* ---------- Дерево файлов ---------- */
-export function tree(el, { open, change, current }) {
+const MIME = 'application/x-webide-path';
+const COLL_KEY = 'tree-collapsed';
+const collapsed = new Set(JSON.parse(localStorage.getItem(COLL_KEY) || '[]'));
+const saveColl = () => localStorage.setItem(COLL_KEY, JSON.stringify([...collapsed]));
+const chevron = open => `<svg class="chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;transition:transform .12s;transform:rotate(${open ? 90 : 0}deg)"><polyline points="9 6 15 12 9 18"/></svg>`;
+const spacer = '<span style="display:inline-block;width:12px;flex:none"></span>';
+const baseName = p => p.slice(p.lastIndexOf('/') + 1);
+const join = (d, n) => (d === '/' ? '' : d) + '/' + n;
+
+let dragActive = false, suppressClick = false;
+
+const scrollParent = el => {
+    for (let p = el; p && p !== document.body; p = p.parentElement) {
+        const o = getComputedStyle(p).overflowY;
+        if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+    }
+    return el.parentElement || el;
+};
+
+const moveEntry = (src, destDir, { change, moved }) => {
+    const dst = join(destDir, baseName(src));
+    if (dst === src) return;
+    if (destDir === src || destDir.startsWith(src + '/')) return toast('Нельзя переместить папку в саму себя', 'err');
+    if (fs.isFile(dst) || fs.isDir(dst)) return toast('«' + baseName(src) + '» уже есть в этой папке', 'err');
+    fs.mv(src, dst);
+    collapsed.delete(destDir); saveColl();
+    moved?.(src, dst);
+    change();
+};
+
+/* Папка, в которую упадёт элемент, если отпустить над target */
+const dropDirOf = target => {
+    const li = target?.closest?.('li');
+    if (!li) return '/';
+    const p = li.dataset.path;
+    return li.dataset.dir === '1' ? p : (p.slice(0, p.lastIndexOf('/')) || '/');
+};
+
+export function tree(el, opts) {
+    const { open, change, current } = opts;
+    const sc = scrollParent(el);
+    const top = sc.scrollTop;
+    /* никакого выделения текста и системного колбэка по долгому тапу */
+    el.style.userSelect = el.style.webkitUserSelect = 'none';
+    el.style.webkitTouchCallout = 'none';
     el.innerHTML = '';
+    const fine = matchMedia('(pointer: fine)').matches;
+
+    const mark = dir => {
+        el.style.outline = dir === '/' ? '1px dashed var(--accent, #7aa2f7)' : '';
+        el.querySelectorAll('li').forEach(l => {
+            l.style.outline = (dir && dir !== '/' && l.dataset.path === dir) ? '1px dashed var(--accent, #7aa2f7)' : '';
+        });
+    };
+
     const walk = (d, lv) => {
         fs.list(d).forEach(n => {
-            const q = (d === '/' ? '' : d) + '/' + n;
-            const dir = fs.isDir(q);
+            const q = join(d, n), dir = fs.isDir(q), isOpen = dir && !collapsed.has(q);
             const li = document.createElement('li');
+            li.dataset.path = q;
+            li.dataset.dir = dir ? '1' : '0';
             li.style.paddingLeft = (lv * 14) + 'px';
             if (!dir && q === current) li.classList.add('active');
 
             const b = document.createElement('button');
             b.className = 'n';
-            b.insertAdjacentHTML('beforeend', iconFor(n, dir));
+            b.insertAdjacentHTML('beforeend', (dir ? chevron(isOpen) : spacer) + iconFor(n, dir));
             const nm = document.createElement('span');
             nm.textContent = n;
             b.append(nm);
 
-            let fired = false;
             b.onclick = e => {
                 e.stopPropagation();
-                if (fired) { fired = false; return; }   /* это был долгий тап */
-                if (!dir) open(q);
+                if (suppressClick) return;                 /* отпускание после долгого тапа / драга */
+                if (dir) {
+                    isOpen ? collapsed.add(q) : collapsed.delete(q);
+                    saveColl();
+                    tree(el, opts);
+                } else open(q);
             };
 
             li.oncontextmenu = e => {
                 e.preventDefault(); e.stopPropagation();
+                if (e.pointerType === 'touch' || !fine) return;   /* на тачах меню открывает долгий тап (см. ниже) */
                 showCtxMenu(e.clientX, e.clientY, menuFor(q, n, dir, change));
             };
 
-            let timer = 0;
-            const cancel = () => { clearTimeout(timer); timer = 0; };
-            li.ontouchstart = e => {
-                cancel();
-                fired = false;
-                timer = setTimeout(() => {
-                    fired = true;
-                    const t = e.touches[0];
-                    showCtxMenu(t.clientX, t.clientY, menuFor(q, n, dir, change));
-                }, 500);
-            };
-            li.ontouchend = cancel;
-            li.ontouchmove = cancel;
-            li.ontouchcancel = cancel;
+            if (fine) {                                    /* мышь / трекпад: обычный HTML5 drag */
+                li.draggable = true;
+                li.ondragstart = e => {
+                    const dt = e.dataTransfer;
+                    dt.setData(MIME, q);
+                    dt.setData('text/plain', dir ? q : (fs.state.files[q] ?? ''));
+                    if (!dir) {      /* Chrome/Edge на десктопе: можно утащить файлом на рабочий стол */
+                        const url = URL.createObjectURL(new Blob([fs.state.files[q] ?? ''], { type: 'text/plain' }));
+                        dt.setData('DownloadURL', `text/plain:${n}:${url}`);
+                        setTimeout(() => URL.revokeObjectURL(url), 60000);
+                    }
+                    dt.effectAllowed = 'copyMove';
+                };
+                li.ondragend = () => mark(null);
+            }
 
             li.append(b);
             el.append(li);
-            if (dir) walk(q, lv + 1);
+            if (isOpen) walk(q, lv + 1);
         });
     };
     walk('/', 0);
+    sc.scrollTop = top;                                    /* перерисовка не сбрасывает прокрутку → ничего не «трясётся» */
+
+    /* ---- drop (мышь) ---- */
+    el.ondragover = e => {
+        if (!e.dataTransfer.types.includes(MIME)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        mark(dropDirOf(e.target));
+    };
+    el.ondragleave = e => { if (!el.contains(e.relatedTarget)) mark(null); };
+    el.ondrop = e => {
+        const src = e.dataTransfer.getData(MIME);
+        if (!src) return;
+        e.preventDefault(); e.stopPropagation();
+        const dest = dropDirOf(e.target);
+        mark(null);
+        moveEntry(src, dest, opts);
+    };
+
+    /* ---- тач: долгий тап → «взяли»; отпустили без движения → меню; потащили → драг ---- */
+    if (!el._tm) {
+        el._tm = true;
+        el.addEventListener('touchmove', e => { if (dragActive) e.preventDefault(); }, { passive: false });
+    }
+    el.onpointerdown = e => {
+        if (e.pointerType === 'mouse') return;
+        const li = e.target.closest('li');
+        if (!li) return;
+        const q = li.dataset.path, n = baseName(q), dir = li.dataset.dir === '1';
+        const x0 = e.clientX, y0 = e.clientY;
+        let px = x0, py = y0, held = false, dragging = false, ghost = null, dest = null, raf = 0;
+
+        const timer = setTimeout(() => {
+            held = true; dragActive = true;
+            navigator.vibrate?.(12);
+            li.style.opacity = '.55';
+        }, 420);
+
+        const destAt = (x, y) => {
+            const t = document.elementFromPoint(x, y);
+            return t && (t === el || el.contains(t)) ? dropDirOf(t) : null;
+        };
+        const loop = () => {
+            if (!dragging) return;
+            const r = sc.getBoundingClientRect();
+            if (py < r.top + 40) sc.scrollTop -= 8;
+            else if (py > r.bottom - 40) sc.scrollTop += 8;
+            dest = destAt(px, py);
+            mark(dest);
+            raf = requestAnimationFrame(loop);
+        };
+        const finish = () => {
+            clearTimeout(timer);
+            cancelAnimationFrame(raf);
+            ghost?.remove();
+            mark(null);
+            li.style.opacity = '';
+            dragActive = false;
+            el.removeEventListener('pointermove', move);
+            el.removeEventListener('pointerup', up);
+            el.removeEventListener('pointercancel', finish);
+            if (held) { suppressClick = true; setTimeout(() => { suppressClick = false; }, 350); }
+        };
+        const move = ev => {
+            px = ev.clientX; py = ev.clientY;
+            const dist = Math.hypot(px - x0, py - y0);
+            if (!held) { if (dist > 8) finish(); return; }          /* это скролл, не драг */
+            if (!dragging && dist > 6) {
+                dragging = true;
+                ghost = document.createElement('div');
+                ghost.textContent = n;
+                ghost.style.cssText = 'position:fixed;left:0;top:0;z-index:9999;padding:4px 10px;border-radius:6px;background:var(--bg-2,#333);color:var(--fg-1,#fff);font:12px system-ui;pointer-events:none;opacity:.92;box-shadow:0 4px 14px rgba(0,0,0,.4)';
+                document.body.append(ghost);
+                loop();
+            }
+            if (dragging) ghost.style.transform = `translate(${px + 12}px,${py - 18}px)`;
+        };
+        const up = ev => {
+            const wasHeld = held, wasDrag = dragging, target = dest;
+            finish();
+            if (wasHeld && !wasDrag) showCtxMenu(ev.clientX, ev.clientY, menuFor(q, n, dir, change));
+            else if (wasDrag && target) moveEntry(q, target, opts);
+        };
+        el.addEventListener('pointermove', move);
+        el.addEventListener('pointerup', up);
+        el.addEventListener('pointercancel', finish);
+    };
 }
 
 /* ---------- Ресайзеры ---------- */

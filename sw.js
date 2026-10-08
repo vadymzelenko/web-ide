@@ -1,4 +1,4 @@
-const C = 'webide-v9';
+const C = 'webide-v10';
 const A = [
     './', 'index.html',
     'src/main.js', 'src/fs.js', 'src/editor.js', 'src/preview.js',

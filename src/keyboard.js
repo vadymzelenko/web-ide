@@ -23,7 +23,6 @@ const SYMBOLS = [
 ];
 const BOTTOM = ['layer', 'dismiss', 'tab', 'space', 'left', 'up', 'down', 'right', 'newline'];
 
-/* Для сплита — своя раскладка нижнего ряда, чтобы половинки были сбалансированы */
 const BOTTOM_L = ['layer', 'dismiss', 'tab', 'space'];
 const BOTTOM_R = ['left', 'up', 'down', 'right', 'newline'];
 
@@ -33,7 +32,6 @@ let layer = 'alpha', shift = false;
 const extKb     = () => localStorage.getItem('ext-kb') === '1';
 const previewing = () => document.body.classList.contains('kb-preview');
 
-/* Клавиши, которые повторяются при удержании */
 const REPEATABLE = new Set(['backspace', 'left', 'right', 'up', 'down']);
 const stopRepeat = () => {
     if (!repeat) return;
@@ -61,7 +59,7 @@ const label = key => ({
 const press = key => {
     if (key === 'shift')   { shift = !shift; render(); return; }
     if (key === 'layer')   { layer = layer === 'alpha' ? 'symbols' : 'alpha'; shift = false; render(); return; }
-    if (previewing()) return;                 /* настройки: только смотрим */
+    if (previewing()) return;
     if (key === 'dismiss') { document.body.classList.remove('typing'); ed.blur(); return; }
 
     const oneShot = shift;
@@ -89,7 +87,6 @@ const mkKey = key => {
     if (key === 'space') b.classList.add('wide');
     if (key === 'dismiss') b.classList.add('accent');
     if (key === 'shift' && shift) b.classList.add('on');
-    /* preventDefault — фокус остаётся в редакторе, нативка не всплывает */
     b.addEventListener('pointerdown', e => {
         e.preventDefault();
         press(key);
@@ -145,11 +142,9 @@ const show = () => {
     if (extKb() || !IS_MOBILE()) return;
     if (document.body.classList.contains('typing')) return;
     document.body.classList.add('typing');
-    /* редактор стал ниже — возвращаем курсор в видимую область */
     requestAnimationFrame(() => requestAnimationFrame(() => ed.revealCursor()));
 };
 
-/* Нативная клавиатура нужна только когда фокус ушёл в обычное поле (терминал, диалоги) */
 const hide = e => {
     const rt = e?.relatedTarget;
     if (!rt || !rt.matches?.('input, textarea, select')) return;
@@ -164,8 +159,6 @@ export function init(hosts) {
     host = arr[0];
 
     arr.forEach(h => {
-        /* Показываем клавиатуру только по тапу. Начало скролла (pointerdown + движение)
-           не должно её открывать — иначе редактор сжимается прямо под пальцем. */
         let sx = 0, sy = 0, st = 0;
         h.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; st = Date.now(); }, true);
         h.addEventListener('pointerup', e => {
@@ -175,9 +168,25 @@ export function init(hosts) {
         h.addEventListener('focusout', hide);
     });
 
+    /* Терминал использует нативную клавиатуру: inputmode="none" ломает фокус на iOS,
+       а встроенная клавиатура кода не подходит для командной строки. */
+    const cmd = $('#cmd');
+    if (cmd) {
+        cmd.inputMode = 'text';
+        cmd.setAttribute('autocapitalize', 'off');
+        cmd.setAttribute('autocorrect', 'off');
+        cmd.setAttribute('autocomplete', 'off');
+        cmd.setAttribute('spellcheck', 'false');
+        cmd.setAttribute('enterkeyhint', 'send');
+    }
+
     const onResize = () => { clearTimeout(resizeT); resizeT = setTimeout(render, 120); };
     window.addEventListener('orientationchange', onResize);
     window.addEventListener('resize', onResize);
 
     render();
+}
+
+export function refreshInput() {
+    ed.refreshInput();
 }

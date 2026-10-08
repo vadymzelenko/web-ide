@@ -23,39 +23,34 @@ const P = [
 ];
 let active = 0;
 
-/* ---------- Statusbar ---------- */
-const setSaved = ok => {
-    const el = $('#st-saved');
-    if (!el) return;
-    el.innerHTML = ok
-        ? '<svg viewBox="0 0 24 24" width="11" height="11"><path d="M20 6L9 17l-5-5"/></svg><span>готов</span>'
-        : '● изменено';
-    el.classList.toggle('dirty', !ok);
-};
-const setStatusFile = p => {
-    const f = $('#st-file'); if (f) f.textContent = p ? p.split('/').pop() : '—';
-    const l = $('#st-lang'); if (l) l.textContent = p ? langOf(p) : 'plain';
-};
-
 /* ---------- Tabs ---------- */
+const isMobile = () => matchMedia('(max-width:899px), (max-height:500px)').matches;
+
 const renderTabs = i => {
     const st = P[i];
-    const bar = i === 0 ? $('#tabs') : $('#tabs2');
-    if (!bar) return;
-    bar.innerHTML = '';
-    st.open = st.open.filter(f => fs.isFile(f));
-    st.open.forEach(f => {
-        const b = document.createElement('button');
-        b.className = f === st.cur ? 'on' : '';
-        const name = document.createElement('span');
-        name.textContent = f.split('/').pop();
-        const x = document.createElement('span');
-        x.className = 'close';
-        x.textContent = '×';
-        x.onclick = e => { e.stopPropagation(); closeTab(i, f); };
-        b.append(name, x);
-        b.onclick = () => openIn(i, f);
-        bar.append(b);
+
+    /* На мобиле — единый #tb-docs для активной панели.
+       На десктопе — свои #tabs / #tabs2. */
+    const bars = isMobile()
+        ? (i === active ? [$('#tb-docs')] : [])
+        : [i === 0 ? $('#tabs') : $('#tabs2')];
+
+    bars.forEach(bar => {
+        if (!bar) return;
+        bar.innerHTML = '';
+        st.open.filter(f => fs.isFile(f)).forEach(f => {
+            const b = document.createElement('button');
+            b.className = f === st.cur ? 'on' : '';
+            const name = document.createElement('span');
+            name.textContent = f.split('/').pop();
+            const x = document.createElement('span');
+            x.className = 'close';
+            x.textContent = '×';
+            x.onclick = e => { e.stopPropagation(); closeTab(i, f); };
+            b.append(name, x);
+            b.onclick = () => openIn(i, f);
+            bar.append(b);
+        });
     });
 };
 
@@ -64,7 +59,6 @@ const save = () => {
     fs.save();
     pv.run();
     P[active].dirty = false;
-    setSaved(true);
 };
 
 /* ---------- open / close ---------- */
@@ -75,10 +69,6 @@ const openIn = (i, p) => {
     st.cur = p;
     st.api?.set(fs.state.files[p] || '', langOf(p));
     renderTabs(i);
-    if (i === active) {
-        setStatusFile(p);
-        setSaved(!st.dirty);
-    }
     ui.show('editor');
     ed.setActive(st.api);
     st.api?.focus();
@@ -94,16 +84,21 @@ const closeTab = (i, p) => {
         st.cur = st.open[idx] || st.open[idx - 1] || null;
         if (st.cur) st.api?.set(fs.state.files[st.cur], langOf(st.cur));
         else        st.api?.set('');
-        if (i === active) setStatusFile(st.cur);
     }
     renderTabs(i);
 };
 
 /* ---------- Обновление ---------- */
+const onMoved = (a, b) => {
+    const remap = p => (p === a || p.startsWith(a + '/')) ? b + p.slice(a.length) : p;
+    P.forEach(st => { st.open = st.open.map(remap); if (st.cur) st.cur = remap(st.cur); });
+};
+
 function refresh() {
     ui.tree($('#tree'), {
         open: p => openIn(active, p),
         change: refresh,
+        moved: onMoved,
         current: P[active].cur
     });
     renderTabs(0);
@@ -120,16 +115,10 @@ const makeHandlers = i => ({
         if (!st.cur) return;
         fs.write(st.cur, t);
         st.dirty = true;
-        if (i === active) setSaved(false);
         pv.schedule();
     },
     onSave: save,
-    onRun: () => { pv.run(); ui.show('preview'); },
-    onCursor: ({ line, col }) => {
-        if (i !== active) return;
-        const el = $('#st-pos');
-        if (el) el.textContent = `${line}:${col}`;
-    }
+    onRun: () => { pv.run(); ui.show('preview'); }
 });
 
 P[0].api = ed.create($('#ed'), makeHandlers(0));
@@ -144,8 +133,8 @@ const setActive = i => {
     active = i;
     ed.setActive(P[i].api);
     $$('.ed-pane').forEach(p => p.classList.toggle('active', +p.dataset.pane === i));
-    setStatusFile(P[i].cur);
-    setSaved(!P[i].dirty);
+    renderTabs(0);
+    renderTabs(1);        /* ← на мобиле перекинет табы активной панели в топбар */
 };
 
 splitBtn?.addEventListener('click', () => {
@@ -222,7 +211,7 @@ $('#fmt').onclick = async () => {
         const t = await format(st.api.get(), langOf(st.cur));
         fs.write(st.cur, t);
         st.api.set(t, langOf(st.cur));
-        st.dirty = true; setSaved(false);
+        st.dirty = true;
         pv.schedule();
         ui.toast('Отформатировано', 'ok');
     } catch (e) {
@@ -271,6 +260,7 @@ window.addEventListener('drop', async e => {
     e.preventDefault();
     const dt = e.dataTransfer;
     if (!dt) return;
+    if (dt.types?.includes('application/x-webide-path')) return;   /* перенос внутри дерева */
 
     const files = [...dt.files];
     const items = [...dt.items];
@@ -316,7 +306,7 @@ const R = document.documentElement;
 const MOBILE    = () => matchMedia('(max-width:899px), (max-height:500px)').matches;
 const LANDSCAPE = () => matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
 const get = (k, d) => localStorage.getItem(k) ?? d;
-const KB_KEYS = ['kb-h', 'kb-gap', 'kb-op', 'kb-scale'];
+const KB_KEYS = ['kb-h', 'kb-gap', 'kb-split', 'kb-op', 'kb-scale'];
 const kbHeightDefault = () => (LANDSCAPE() ? 160 : 300);
 
 const applyKb = () => {
@@ -324,12 +314,12 @@ const applyKb = () => {
     if (localStorage.getItem('kb-h')) R.style.setProperty('--kb-h', `min(${get('kb-h', 300)}px, 60vh)`);
     else R.style.removeProperty('--kb-h');
     R.style.setProperty('--kb-gap',   get('kb-gap', 3) + 'px');
+    R.style.setProperty('--kb-split', get('kb-split', 24) + 'px');
     R.style.setProperty('--kb-op',    get('kb-op', 100) / 100);
     R.style.setProperty('--kb-scale', get('kb-scale', 100) / 100);
 
     const ext = get('ext-kb', '0') === '1';
     document.body.classList.toggle('ext-kb', ext);
-    document.body.classList.toggle('no-status', get('status-bar', '1') === '0');
     if (ext) document.body.classList.remove('typing');
 };
 applyKb();
@@ -342,6 +332,7 @@ const syncPreview = () => document.body.classList.toggle(
 const RANGES = [
     { id: 's-kb-h',     key: 'kb-h',     def: kbHeightDefault, fmt: v => v + ' px', apply: applyKb },
     { id: 's-kb-gap',   key: 'kb-gap',   def: () => 3,         fmt: v => v + ' px', apply: applyKb },
+    { id: 's-kb-split', key: 'kb-split', def: () => 24,        fmt: v => v + ' px', apply: applyKb },
     { id: 's-kb-op',    key: 'kb-op',    def: () => 100,       fmt: v => v + '%',   apply: applyKb },
     { id: 's-kb-scale', key: 'kb-scale', def: () => 100,       fmt: v => v + '%',   apply: applyKb },
     { id: 's-fs',       key: 'fs',       def: () => 14,        fmt: v => v + ' px', apply: v => ui.fontSize(v) }
@@ -354,41 +345,45 @@ const syncTheme = () => $$('#s-theme button').forEach(
 const loadSettings = () => {
     syncTheme();
     RANGES.forEach(r => {
+        const el = $('#' + r.id); if (!el) return;
         const v = get(r.key, r.def());
-        $('#' + r.id).value = v;
-        $('#o-' + r.id.slice(2)).textContent = r.fmt(v);
+        el.value = v;
+        const o = $('#o-' + r.id.slice(2)); if (o) o.textContent = r.fmt(v);
     });
-    $('#s-live').checked   = get('live', 'true') !== 'false';
-    $('#s-ext-kb').checked = get('ext-kb', '0') === '1';
-    $('#s-status').checked = get('status-bar', '1') !== '0';
+    const live = $('#s-live');    if (live)    live.checked    = get('live', 'true') !== 'false';
+    const ext  = $('#s-ext-kb');  if (ext)     ext.checked     = get('ext-kb', '0') === '1';
 };
 
 RANGES.forEach(r => {
     const el = $('#' + r.id), out = $('#o-' + r.id.slice(2));
+    if (!el) return;
+    if (r.key === 'kb-h')     { el.min = 80; el.max = 420; }
+    if (r.key === 'kb-split') { el.min = 0;  el.max = 400; }
     el.oninput = () => {
         localStorage.setItem(r.key, el.value);
-        out.textContent = r.fmt(el.value);
+        if (out) out.textContent = r.fmt(el.value);
         r.apply(el.value);
     };
 });
 
 $$('#s-theme button').forEach(b => b.onclick = () => { ui.theme(b.dataset.v); syncTheme(); });
 
-$('#s-status').onchange = e => {
-    localStorage.setItem('status-bar', e.target.checked ? '1' : '0');
-    applyKb();
-};
-$('#s-live').onchange = e => {
+const liveEl = $('#s-live');
+if (liveEl) liveEl.onchange = e => {
     localStorage.setItem('live', e.target.checked);
     pv.setLive(e.target.checked);
 };
-$('#s-ext-kb').onchange = e => {
+
+const extEl = $('#s-ext-kb');
+if (extEl) extEl.onchange = e => {
     localStorage.setItem('ext-kb', e.target.checked ? '1' : '0');
     applyKb();
-    ed.refreshInput();          /* inputmode редактора пересчитывается сразу */
+    keyboard.refreshInput();
     syncPreview();
 };
-$('#s-kb-def').onclick = () => {
+
+const kbDef = $('#s-kb-def');
+if (kbDef) kbDef.onclick = () => {
     KB_KEYS.forEach(k => localStorage.removeItem(k));
     applyKb();
     loadSettings();
@@ -397,7 +392,7 @@ $('#s-kb-def').onclick = () => {
 const openSettings = () => {
     loadSettings();
     if (MOBILE()) {
-        D.show();                                  /* не модальный: клавиатура остаётся видимой */
+        D.show();
         document.body.classList.add('settings-open');
     } else {
         D.showModal();
@@ -405,7 +400,7 @@ const openSettings = () => {
     syncPreview();
 };
 D.addEventListener('close', () => document.body.classList.remove('settings-open', 'kb-preview'));
-D.addEventListener('click', e => { if (e.target === D) D.close(); });   /* клик по подложке */
+D.addEventListener('click', e => { if (e.target === D) D.close(); });
 
 $('#gear').onclick    = openSettings;
 $('#s-close').onclick = () => D.close();
@@ -415,7 +410,7 @@ $('#scrim').onclick   = () => { if (D.open) D.close(); ui.closeSheet(); };
 let rzT;
 window.addEventListener('resize', () => {
     clearTimeout(rzT);
-    rzT = setTimeout(() => { applyKb(); ed.refreshInput(); syncPreview(); }, 150);
+    rzT = setTimeout(() => { applyKb(); keyboard.refreshInput(); syncPreview(); }, 150);
 });
 
 $('#s-reset').onclick = async () => {
@@ -472,7 +467,7 @@ if (!localStorage.getItem('webide-first')) {
     }
     localStorage.setItem('webide-first', '1');
 }
-if (!localStorage.getItem('ui-v2')) {            /* старое автоскрытие могло оставить шапку скрытой */
+if (!localStorage.getItem('ui-v2')) {
     localStorage.setItem('header-hidden', '0');
     localStorage.setItem('ui-v2', '1');
 }
