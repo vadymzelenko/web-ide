@@ -29,6 +29,16 @@ const BOTTOM_R = ['left', 'up', 'down', 'right', 'newline'];
 let kb, host, resizeT, repeat = null;
 let layer = 'alpha', shift = false;
 
+/* ----- Тачбар / виртуальный курсор / детектор встряхивания ----- */
+let padMode = false, cursorEl = null;
+let cx = 0, cy = 0;                       // позиция виртуального курсора
+let lastMag = 0, spikes = [], lastToggle = 0, motionOn = false;
+
+const SHAKE_JERK = 18;      // порог резкости (м/с² между замерами), меньше = чувствительнее
+const SHAKE_COUNT = 3;      // сколько пиков подряд
+const SHAKE_WINDOW = 700;   // за сколько мс
+const PAD_GAIN = 1.6;       // скорость курсора
+
 const extKb     = () => localStorage.getItem('ext-kb') === '1';
 const previewing = () => document.body.classList.contains('kb-preview');
 
@@ -147,11 +157,131 @@ const row = (keys, parent) => {
     parent.append(r);
 };
 
+/* ===================== Виртуальный курсор и клик ===================== */
+
+const ensureCursor = () => {
+    if (cursorEl) return cursorEl;
+    cursorEl = document.createElement('div');
+    cursorEl.className = 'vcursor';
+    cursorEl.innerHTML =
+        '<svg width="22" height="22" viewBox="0 0 24 24"><path d="M4 2l16 9-7 2-3 7z" ' +
+        'fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    document.body.append(cursorEl);
+    return cursorEl;
+};
+
+const moveVCursor = (x, y) => {
+    cx = Math.max(0, Math.min(window.innerWidth - 1, x));
+    cy = Math.max(0, Math.min(window.innerHeight - 1, y));
+    ensureCursor().style.transform = `translate(${cx}px, ${cy}px)`;
+};
+
+const fire = (el, type, Ctor = MouseEvent, extra = {}) =>
+    el.dispatchEvent(new Ctor(type, {
+        bubbles: true, cancelable: true, view: window,
+        clientX: cx, clientY: cy, button: 0, ...extra
+    }));
+
+const virtualClick = (dbl = false) => {
+    const el = document.elementFromPoint(cx, cy);
+    if (!el) return;
+
+    // Если в editor.js есть свой метод, используем его — это самый надёжный путь
+    if (typeof ed.clickAt === 'function') { ed.clickAt(cx, cy, dbl ? 2 : 1); return; }
+
+    const pe = { pointerType: 'mouse', isPrimary: true };
+    fire(el, 'pointerdown', PointerEvent, pe);
+    fire(el, 'mousedown');
+    fire(el, 'pointerup', PointerEvent, pe);
+    fire(el, 'mouseup');
+    fire(el, 'click');
+    if (dbl) fire(el, 'dblclick', MouseEvent, { detail: 2 });
+
+    // Запасной вариант: поставить каретку в contenteditable по координатам
+    if (el.isContentEditable) {
+        const r = document.caretRangeFromPoint?.(cx, cy);
+        if (r) {
+            const s = getSelection();
+            s.removeAllRanges();
+            s.addRange(r);
+        }
+    } else if (el.focus) el.focus();
+};
+
+const setPad = on => {
+    if (padMode === on) return;
+    padMode = on;
+    if (on) {
+        const r = (host || document.body).getBoundingClientRect();
+        moveVCursor(r.left + r.width / 2, r.top + r.height / 3);
+        ensureCursor().style.display = 'block';
+    } else if (cursorEl) cursorEl.style.display = 'none';
+    navigator.vibrate?.(on ? [20, 40, 20] : 20);
+    render();
+};
+
+const buildPad = () => {
+    const pad = document.createElement('div');
+    pad.className = 'kb-pad';
+
+    const hint = document.createElement('div');
+    hint.className = 'kb-pad-hint';
+    hint.textContent = 'Тап — клик · двойной тап — двойной клик · встряхни для клавиатуры';
+
+    const bar = document.createElement('div');
+    bar.className = 'kb-pad-bar';
+    const mk = (txt, fn) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = txt;
+        b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); });
+        return b;
+    };
+    bar.append(mk('Клик', () => virtualClick()), mk('⌨', () => setPad(false)));
+
+    // жесты на поверхности
+    let id = null, lx = 0, ly = 0, t0 = 0, dist = 0, lastTap = 0;
+    pad.addEventListener('pointerdown', e => {
+        if (e.target.closest('.kb-pad-bar')) return;
+        e.preventDefault();
+        try { pad.setPointerCapture(e.pointerId); } catch {}
+        id = e.pointerId; lx = e.clientX; ly = e.clientY; t0 = Date.now(); dist = 0;
+    });
+    pad.addEventListener('pointermove', e => {
+        if (e.pointerId !== id) return;
+        const dx = e.clientX - lx, dy = e.clientY - ly;
+        lx = e.clientX; ly = e.clientY;
+        dist += Math.hypot(dx, dy);
+        const speed = Math.min(2.2, 1 + Math.hypot(dx, dy) / 12); // лёгкое ускорение
+        moveVCursor(cx + dx * PAD_GAIN * speed, cy + dy * PAD_GAIN * speed);
+    });
+    const end = e => {
+        if (e.pointerId !== id) return;
+        id = null;
+        if (e.type === 'pointerup' && dist < 6 && Date.now() - t0 < 250) {
+            const now = Date.now();
+            const dbl = now - lastTap < 320;
+            lastTap = dbl ? 0 : now;
+            virtualClick(dbl);
+        }
+    };
+    pad.addEventListener('pointerup', end);
+    pad.addEventListener('pointercancel', end);
+
+    pad.append(hint, bar);
+    return pad;
+};
+
+/* ===================== Рендер ===================== */
+
 const render = () => {
     if (!kb) return;
     stopRepeat();
     kb.innerHTML = '';
-    kb.classList.toggle('split', IS_LANDSCAPE());
+    kb.classList.toggle('split', IS_LANDSCAPE() && !padMode);
+    kb.classList.toggle('padmode', padMode);
+
+    if (padMode) { kb.append(buildPad()); return; }
 
     if (IS_LANDSCAPE()) {
         const wrap = document.createElement('div');
@@ -190,6 +320,43 @@ const hide = e => {
     document.body.classList.remove('typing');
 };
 
+/* ===================== Детектор встряхивания ===================== */
+
+const onMotion = e => {
+    const a = e.accelerationIncludingGravity;
+    if (!a) return;
+    const m = Math.hypot(a.x || 0, a.y || 0, a.z || 0);
+    const jerk = Math.abs(m - lastMag);
+    lastMag = m;
+    if (jerk < SHAKE_JERK) return;
+
+    const now = Date.now();
+    spikes = spikes.filter(t => now - t < SHAKE_WINDOW);
+    spikes.push(now);
+    if (spikes.length < SHAKE_COUNT || now - lastToggle < 1200) return;
+
+    spikes = [];
+    lastToggle = now;
+    // реагируем только когда экранная клавиатура реально открыта
+    if (!document.body.classList.contains('typing') && !padMode) return;
+    setPad(!padMode);
+};
+
+const enableMotion = async () => {
+    if (motionOn || typeof DeviceMotionEvent === 'undefined') return;
+    try {
+        // iOS требует разрешения, вызванного из жеста пользователя
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            const r = await DeviceMotionEvent.requestPermission();
+            if (r !== 'granted') return;
+        }
+        window.addEventListener('devicemotion', onMotion);
+        motionOn = true;
+    } catch {}
+};
+
+/* ===================== Публичный API ===================== */
+
 export function init(hosts) {
     kb = $('#keyboard');
     const arr = (Array.isArray(hosts) ? hosts : [hosts]).filter(Boolean);
@@ -220,9 +387,16 @@ export function init(hosts) {
     window.addEventListener('orientationchange', onResize);
     window.addEventListener('resize', onResize);
 
+    // Android включится сразу, iOS — по первому касанию клавиатуры/редактора
+    enableMotion();
+    kb.addEventListener('pointerdown', enableMotion, { once: true });
+    arr.forEach(h => h.addEventListener('pointerup', enableMotion, { once: true }));
+
     render();
 }
 
 export function refreshInput() {
     ed.refreshInput();
 }
+
+export const togglePad = () => setPad(!padMode);

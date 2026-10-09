@@ -1144,3 +1144,28 @@ body.settings-open #scrim { opacity: 1; visibility: visible; transition-delay: 0
     .tb-docs .close,
     .tabbar .close { opacity: .7; }
 }
+
+
+.vcursor {
+    position: fixed; left: 0; top: 0; z-index: 99999;
+    pointer-events: none; display: none;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,.6));
+    will-change: transform;
+}
+#keyboard.padmode { padding: 0; }
+.kb-pad {
+    position: relative; height: 220px; margin: 6px;
+    border-radius: 14px; background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.12);
+    touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.kb-pad-hint {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    padding: 0 16px; text-align: center; font-size: 12px; opacity: .45;
+    pointer-events: none;
+}
+.kb-pad-bar { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 8px; }
+.kb-pad-bar button {
+    padding: 10px 16px; border-radius: 10px; border: 0;
+    background: rgba(255,255,255,.14); color: inherit; font-size: 15px;
+}
