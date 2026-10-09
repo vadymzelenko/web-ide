@@ -34,9 +34,9 @@ let padMode = false, cursorEl = null;
 let cx = 0, cy = 0;                       // позиция виртуального курсора
 let lastMag = 0, spikes = [], lastToggle = 0, motionOn = false;
 
-const SHAKE_JERK = 18;      // порог резкости (м/с² между замерами), меньше = чувствительнее
-const SHAKE_COUNT = 3;      // сколько пиков подряд
-const SHAKE_WINDOW = 700;   // за сколько мс
+const SHAKE_JERK = 12;      // порог резкости (м/с² между замерами), меньше = чувствительнее
+const SHAKE_COUNT = 2;      // сколько пиков подряд
+const SHAKE_WINDOW = 500;   // за сколько мс
 const PAD_GAIN = 1.6;       // скорость курсора
 
 const extKb     = () => localStorage.getItem('ext-kb') === '1';
