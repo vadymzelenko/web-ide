@@ -21,9 +21,9 @@ const SYMBOLS = [
     ['!', '@', '#', '$', '%', '^', '&', '|'],
     ['?', '.', ',', '_', '\\', '+', '-', '*', 'backspace']
 ];
-const BOTTOM = ['layer', 'dismiss', 'tab', 'space', 'left', 'up', 'down', 'right', 'newline'];
+const BOTTOM = ['layer', 'pad', 'dismiss', 'tab', 'space', 'left', 'up', 'down', 'right', 'newline'];
 
-const BOTTOM_L = ['layer', 'dismiss', 'tab', 'space'];
+const BOTTOM_L = ['layer', 'pad', 'dismiss', 'tab', 'space'];
 const BOTTOM_R = ['left', 'up', 'down', 'right', 'newline'];
 
 let kb, host, resizeT, repeat = null;
@@ -63,12 +63,13 @@ const out = key => {
 const label = key => ({
     shift: '⇧', backspace: '⌫', tab: 'Tab', space: '␣', newline: '⏎',
     left: '←', up: '↑', down: '↓', right: '→',
-    layer: layer === 'alpha' ? '#+=' : 'abc', dismiss: '⌄'
+    layer: layer === 'alpha' ? '#+=' : 'abc', dismiss: '⌄', pad: '🖱'
 }[key] ?? out(key));
 
 const press = key => {
     if (key === 'shift')   { shift = !shift; render(); return; }
     if (key === 'layer')   { layer = layer === 'alpha' ? 'symbols' : 'alpha'; shift = false; render(); return; }
+    if (key === 'pad')     { setPad(true); return; }
     if (previewing()) return;
     if (key === 'dismiss') { document.body.classList.remove('typing'); ed.blur(); return; }
 
@@ -87,7 +88,7 @@ const press = key => {
     if (oneShot) { shift = false; render(); }
 };
 
-const FN = new Set(['shift','backspace','tab','newline','left','up','down','right','layer','dismiss']);
+const FN = new Set(['shift','backspace','tab','newline','left','up','down','right','layer','dismiss','pad']);
 
 const mkKey = key => {
     const b = document.createElement('button');
