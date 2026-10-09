@@ -143,6 +143,8 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round
    3. Unified toolbar
    ============================================================ */
 .toolbar {
+    position: relative;
+    z-index: 95;               /* выше #scrim, иначе первый тап закрывает scrim */
     display: flex;
     align-items: center;
     gap: 4px;
@@ -199,7 +201,9 @@ body.header-hidden .toolbar {
     white-space: nowrap;
     min-height: 0;
 }
-.tb-docs button:hover { color: var(--fg-1); }
+@media (hover: hover) {
+    .tb-docs button:hover { color: var(--fg-1); }
+}
 .tb-docs button.on    { color: var(--fg-1); border-bottom-color: var(--ac-1); }
 .tb-docs .close {
     display: inline-flex; align-items: center; justify-content: center;
@@ -207,9 +211,13 @@ body.header-hidden .toolbar {
     font-size: 12px; line-height: 1; opacity: 0;
     color: var(--fg-3);
 }
-.tb-docs button:hover .close,
 .tb-docs button.on .close { opacity: .7; }
-.tb-docs .close:hover { opacity: 1; background: var(--bg-h); color: var(--fg-1); }
+@media (hover: hover) {
+    .tb-docs button:hover .close { opacity: .7; }
+}
+@media (hover: hover) {
+    .tb-docs .close:hover { opacity: 1; background: var(--bg-h); color: var(--fg-1); }
+}
 
 .tb-modes {
     display: none;
@@ -226,7 +234,9 @@ body.header-hidden .toolbar {
     color: var(--fg-3);
     min-height: 0;
 }
-.tb-modes button:hover { color: var(--fg-1); background: var(--bg-2); }
+@media (hover: hover) {
+    .tb-modes button:hover { color: var(--fg-1); background: var(--bg-2); }
+}
 .tb-modes button.on    { color: var(--fg-1); background: var(--ac-soft); }
 .tb-modes button svg   { flex-shrink: 0; }
 
@@ -258,7 +268,9 @@ body.header-hidden .toolbar {
     opacity: .8;
     transition: color var(--t-fast), background var(--t-fast), opacity var(--t-fast);
 }
-.burger:hover  { color: var(--fg-1); background: var(--bg-2); }
+@media (hover: hover) {
+    .burger:hover { color: var(--fg-1); background: var(--bg-2); }
+}
 .burger:active { opacity: 1; }
 body.header-hidden .burger { display: flex; }
 
@@ -284,11 +296,15 @@ button { cursor: pointer; }
     border-radius: var(--r);
     color: var(--fg-2);
 }
-.ib:hover  { background: var(--bg-3); color: var(--fg-1); border-color: var(--bd-1); }
+@media (hover: hover) {
+    .ib:hover { background: var(--bg-3); color: var(--fg-1); border-color: var(--bd-1); }
+}
 .ib:active { transform: scale(.96); }
 .ib.sm     { width: 28px; height: 28px; border-radius: var(--r-sm); }
 .ib.primary         { background: var(--ac-1); color: var(--ac-fg); }
-.ib.primary:hover   { background: var(--ac-2); border-color: transparent; }
+@media (hover: hover) {
+    .ib.primary:hover { background: var(--ac-2); border-color: transparent; }
+}
 
 .btn {
     min-height: 32px; padding: 0 14px;
@@ -296,11 +312,17 @@ button { cursor: pointer; }
     border-radius: var(--r);
     font-size: 13px; font-weight: 500;
 }
-.btn:hover         { background: var(--bg-3); border-color: var(--bd-3); }
+@media (hover: hover) {
+    .btn:hover { background: var(--bg-3); border-color: var(--bd-3); }
+}
 .btn.primary       { background: var(--ac-1); color: var(--ac-fg); border-color: transparent; font-weight: 600; }
-.btn.primary:hover { background: var(--ac-2); }
+@media (hover: hover) {
+    .btn.primary:hover { background: var(--ac-2); }
+}
 .btn.danger        { background: transparent; color: var(--err); border-color: var(--bd-2); }
-.btn.danger:hover  { background: color-mix(in srgb, var(--err) 12%, transparent); border-color: var(--err); }
+@media (hover: hover) {
+    .btn.danger:hover { background: color-mix(in srgb, var(--err) 12%, transparent); border-color: var(--err); }
+}
 
 .seg {
     display: inline-flex; align-items: center;
@@ -315,7 +337,9 @@ button { cursor: pointer; }
     color: var(--fg-3);
     display: inline-flex; align-items: center; justify-content: center;
 }
-.seg button:hover { color: var(--fg-1); background: var(--bg-3); }
+@media (hover: hover) {
+    .seg button:hover { color: var(--fg-1); background: var(--bg-3); }
+}
 .seg button.on    { background: var(--bg-h); color: var(--fg-1); }
 
 /* ============================================================
@@ -362,7 +386,9 @@ section.full { position: fixed; inset: 0; z-index: 100; }
 #tree * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #tree::-webkit-scrollbar { width: 8px; }
 #tree::-webkit-scrollbar-thumb { background: var(--bd-2); border-radius: 4px; }
-#tree::-webkit-scrollbar-thumb:hover { background: var(--bd-3); }
+@media (hover: hover) {
+    #tree::-webkit-scrollbar-thumb:hover { background: var(--bd-3); }
+}
 
 #tree li {
     display: flex; align-items: center;
@@ -373,7 +399,9 @@ section.full { position: fixed; inset: 0; z-index: 100; }
     cursor: pointer;
     transition: background var(--t-fast);
 }
-#tree li:hover  { background: var(--bg-3); }
+@media (hover: hover) {
+    #tree li:hover { background: var(--bg-3); }
+}
 #tree li.active { background: var(--ac-soft); }
 #tree li.active .n { color: var(--fg-1); }
 
@@ -391,7 +419,9 @@ section.full { position: fixed; inset: 0; z-index: 100; }
     border-radius: var(--r-sm);
     -webkit-tap-highlight-color: transparent;
 }
-#tree .n:hover { background: transparent; color: var(--fg-1); }
+@media (hover: hover) {
+    #tree .n:hover { background: transparent; color: var(--fg-1); }
+}
 #tree .n svg   { flex-shrink: 0; }
 #tree .n .icon-html { color: #e44d26; }
 #tree .n .icon-css  { color: #2965f1; }
@@ -429,7 +459,9 @@ section.full { position: fixed; inset: 0; z-index: 100; }
     min-height: 0;
     position: relative;
 }
-.tabbar button:hover { color: var(--fg-1); }
+@media (hover: hover) {
+    .tabbar button:hover { color: var(--fg-1); }
+}
 .tabbar button.on {
     color: var(--fg-1);
     border-bottom-color: var(--ac-1);
@@ -441,9 +473,13 @@ section.full { position: fixed; inset: 0; z-index: 100; }
     opacity: 0; font-size: 12px; line-height: 1;
     color: var(--fg-3);
 }
-.tabbar button:hover .close,
-.tabbar button.on .close    { opacity: .7; }
-.tabbar .close:hover { opacity: 1; background: var(--bg-h); color: var(--fg-1); }
+.tabbar button.on .close { opacity: .7; }
+@media (hover: hover) {
+    .tabbar button:hover .close { opacity: .7; }
+}
+@media (hover: hover) {
+    .tabbar .close:hover { opacity: 1; background: var(--bg-h); color: var(--fg-1); }
+}
 
 /* ============================================================
    8. Editor + vertical split
@@ -496,7 +532,9 @@ section.full { position: fixed; inset: 0; z-index: 100; }
 }
 .cm-scroller::-webkit-scrollbar { width: 8px; height: 8px; }
 .cm-scroller::-webkit-scrollbar-thumb { background: var(--bd-2); border-radius: 4px; }
-.cm-scroller::-webkit-scrollbar-thumb:hover { background: var(--bd-3); }
+@media (hover: hover) {
+    .cm-scroller::-webkit-scrollbar-thumb:hover { background: var(--bd-3); }
+}
 
 /* ============================================================
    9. Preview
@@ -598,10 +636,16 @@ section.full { position: fixed; inset: 0; z-index: 100; }
     color: var(--fg-2);
     min-height: 0;
 }
-.ctx-menu button:hover        { background: var(--bg-h); color: var(--fg-1); }
-.ctx-menu button.danger:hover { background: color-mix(in srgb, var(--err) 15%, transparent); color: var(--err); }
+@media (hover: hover) {
+    .ctx-menu button:hover { background: var(--bg-h); color: var(--fg-1); }
+}
+@media (hover: hover) {
+    .ctx-menu button.danger:hover { background: color-mix(in srgb, var(--err) 15%, transparent); color: var(--err); }
+}
 .ctx-menu button svg          { color: var(--fg-3); }
-.ctx-menu button:hover svg    { color: currentColor; }
+@media (hover: hover) {
+    .ctx-menu button:hover svg { color: currentColor; }
+}
 
 /* ============================================================
    12. Dialogs
@@ -759,7 +803,9 @@ dialog input[type="range"]::-moz-range-thumb {
     border-radius: var(--r-sm);
     font-size: 13px; font-weight: 500;
 }
-.seg-lg button:hover { color: var(--fg-1); background: var(--bg-3); }
+@media (hover: hover) {
+    .seg-lg button:hover { color: var(--fg-1); background: var(--bg-3); }
+}
 .seg-lg button.on    { background: var(--bg-h); color: var(--fg-1); box-shadow: inset 0 0 0 1px var(--bd-2); }
 
 /* ============================================================
@@ -771,12 +817,19 @@ dialog input[type="range"]::-moz-range-thumb {
     width: 6px; cursor: col-resize; z-index: 50;
     touch-action: none;
 }
-.rz.l { right: auto; left: -3px; }
-.rz:hover::after, .rz:active::after {
-    content: '';
-    position: absolute; inset: 0 2px;
-    background: var(--ac-1);
-    border-radius: 2px;
+.rz.l { right: auto; left: -3px; }.rz:active::after {
+                                      content: '';
+                                      position: absolute; inset: 0 2px;
+                                      background: var(--ac-1);
+                                      border-radius: 2px;
+                                  }
+@media (hover: hover) {
+    .rz:hover::after {
+        content: '';
+        position: absolute; inset: 0 2px;
+        background: var(--ac-1);
+        border-radius: 2px;
+    }
 }
 .rz-h {
     display: none;
@@ -787,12 +840,21 @@ dialog input[type="range"]::-moz-range-thumb {
     z-index: 50;
     touch-action: none;
 }
-.rz-h:hover::after, .rz-h:active::after {
+.rz-h:active::after {
     content: '';
     position: absolute; inset: 2px 0;
     background: var(--ac-1);
     border-radius: 2px;
     opacity: .8;
+}
+@media (hover: hover) {
+    .rz-h:hover::after {
+        content: '';
+        position: absolute; inset: 2px 0;
+        background: var(--ac-1);
+        border-radius: 2px;
+        opacity: .8;
+    }
 }
 
 /* ============================================================
@@ -901,7 +963,9 @@ body.kb-term [data-p="terminal"] { padding-bottom: var(--kb-h, 300px); }
     font-size: 13px;
     min-height: 38px;
 }
-.menu-popup button:hover { background: var(--bg-h); color: var(--fg-1); }
+@media (hover: hover) {
+    .menu-popup button:hover { background: var(--bg-h); color: var(--fg-1); }
+}
 .menu-popup button svg   { flex-shrink: 0; color: var(--fg-3); }
 .menu-popup hr {
     border: 0;
@@ -954,8 +1018,8 @@ body.kb-term [data-p="terminal"] { padding-bottom: var(--kb-h, 300px); }
     .tb-brand span { display: none; }
     #split-btn,
     #save { display: none; }
-    .tb-actions .ib { width: 32px; height: 32px; }
-    .tb-modes button { width: 32px; height: 32px; }
+    .tb-actions .ib { width: 36px; height: 32px; }
+    .tb-modes button { width: 36px; height: 32px; }
 
     .tabbar { display: none; }
 
@@ -1072,3 +1136,11 @@ body.settings-open #scrim { opacity: 1; visibility: visible; transition-delay: 0
 #toast.on  { opacity: 1; transform: translateX(-50%) translateY(0); }
 #toast.err { border-color: var(--err); color: var(--err); }
 #toast.ok  { border-color: var(--ok);  color: var(--ok); }
+
+/* ============================================================
+   21. Touch: нет hover — крестики вкладок видны всегда
+   ============================================================ */
+@media (hover: none) {
+    .tb-docs .close,
+    .tabbar .close { opacity: .7; }
+}

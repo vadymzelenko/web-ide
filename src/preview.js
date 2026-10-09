@@ -2,7 +2,8 @@ import { state } from './fs.js';
 
 const F = n => state.files['/' + n.replace(/^\.?\//, '')];
 
-let pv, tm;
+let pv, sec, tm;
+let stale = false;                       /* превью устарело, пока секция была скрыта */
 let auto = localStorage.getItem('live') !== 'false';
 
 export const build = () => {
@@ -21,14 +22,24 @@ export const build = () => {
     return html;
 };
 
-export const run = () => {
+/* Секция видна? (на мобиле неактивные секции — display:none, у них нет боксов) */
+const visible = () => !sec || sec.getClientRects().length > 0;
+
+/* force=true — перезапустить, даже если секция скрыта */
+export const run = force => {
     if (!pv) return;
+    if (force !== true && !visible()) { stale = true; return; }   /* не гоняем скрытый iframe */
+    stale = false;
     pv.parentElement?.classList.add('updating');
     pv.srcdoc = build();
 };
 
-export const init = (el, sec) => {
+/* Когда секция снова стала видимой — догоняем накопленные изменения */
+export const flushIfStale = () => { if (stale && visible()) run(true); };
+
+export const init = (el, section) => {
     pv = el;
+    sec = section;
     if (!el.parentElement.querySelector('#pv-badge')) {
         const badge = document.createElement('div');
         badge.id = 'pv-badge';
@@ -46,8 +57,14 @@ export const init = (el, sec) => {
     });
     sec.querySelector('#full').onclick = () => {
         sec.classList.toggle('full');
-        setTimeout(run, 50);
+        setTimeout(() => run(true), 50);
     };
+
+    /* ui.show() переключает класс .on у секций — ловим момент показа превью,
+       main.js / ui.js менять не нужно */
+    new MutationObserver(flushIfStale).observe(sec, { attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('resize', flushIfStale);
+
     run();
 };
 
