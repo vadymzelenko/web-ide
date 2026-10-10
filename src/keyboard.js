@@ -1,8 +1,7 @@
 import * as ed from './editor.js';
+import { isLandscape as IS_LANDSCAPE, shouldKb } from './platform.js';
 
 const $ = s => document.querySelector(s);
-const IS_MOBILE = () => window.matchMedia('(max-width: 899px), (max-height: 500px)').matches;
-const IS_LANDSCAPE = () => window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
 
 const SHIFT_MAP = {
     '1': '!', '2': '@', '3': '#', '4': '$', '5': '%',
@@ -21,25 +20,25 @@ const SYMBOLS = [
     ['!', '@', '#', '$', '%', '^', '&', '|'],
     ['?', '.', ',', '_', '\\', '+', '-', '*', 'backspace']
 ];
-const BOTTOM = ['layer', 'pad', 'dismiss', 'tab', 'space', 'left', 'up', 'down', 'right', 'newline'];
+const BOTTOM = ['layer', 'dismiss', 'tab', 'space', 'left', 'up', 'down', 'right', 'newline'];
 
-const BOTTOM_L = ['layer', 'pad', 'dismiss', 'tab', 'space'];
+const BOTTOM_L = ['layer', 'dismiss', 'tab', 'space'];
 const BOTTOM_R = ['left', 'up', 'down', 'right', 'newline'];
 
 let kb, host, resizeT, repeat = null;
 let layer = 'alpha', shift = false;
+let allHosts = [];
 
 /* ----- Тачбар / виртуальный курсор / детектор встряхивания ----- */
 let padMode = false, cursorEl = null;
 let cx = 0, cy = 0;                       // позиция виртуального курсора
 let lastMag = 0, spikes = [], lastToggle = 0, motionOn = false;
 
-const SHAKE_JERK = 12;      // порог резкости (м/с² между замерами), меньше = чувствительнее
-const SHAKE_COUNT = 2;      // сколько пиков подряд
-const SHAKE_WINDOW = 500;   // за сколько мс
+const SHAKE_JERK = 18;      // порог резкости (м/с² между замерами), меньше = чувствительнее
+const SHAKE_COUNT = 3;      // сколько пиков подряд
+const SHAKE_WINDOW = 700;   // за сколько мс
 const PAD_GAIN = 1.6;       // скорость курсора
 
-const extKb     = () => localStorage.getItem('ext-kb') === '1';
 const previewing = () => document.body.classList.contains('kb-preview');
 
 const REPEATABLE = new Set(['backspace', 'left', 'right', 'up', 'down']);
@@ -52,6 +51,37 @@ const stopRepeat = () => {
 
 const rows = () => (layer === 'alpha' ? ALPHA : SYMBOLS);
 
+/* ===================== Цель ввода (редактор / терминал) =====================
+   Одна и та же клавиатура пишет в разные места: в CodeMirror или в поле
+   терминала. Цель переключается по активной секции. */
+const editorTarget = {
+    name: 'editor',
+    insert: (t, o) => ed.insert(t, o),
+    backspace: () => ed.backspace(),
+    newline: () => ed.newline(),
+    indent: () => ed.indent(),
+    moveCursor: d => ed.moveCursor(d),
+    moveLine: d => ed.moveLine(d),
+    dismiss: () => ed.blur(),
+    focus: () => ed.focus(),
+};
+const targets = { editor: editorTarget };
+let target = editorTarget;
+
+export const registerTarget = (name, t) => { targets[name] = t; };
+export const setTarget = name => {
+    target = targets[name] || editorTarget;
+    /* Если клавиатура уже открыта, сразу поправляем отступ под терминал. */
+    if (document.body.classList.contains('typing')) {
+        document.body.classList.toggle('kb-term', target.name === 'terminal');
+    }
+};
+
+const dismiss = () => {
+    document.body.classList.remove('typing', 'kb-term');
+    target?.dismiss?.();
+};
+
 const out = key => {
     if (shift && layer === 'alpha') {
         if (/[a-z]/.test(key)) return key.toUpperCase();
@@ -63,32 +93,31 @@ const out = key => {
 const label = key => ({
     shift: '⇧', backspace: '⌫', tab: 'Tab', space: '␣', newline: '⏎',
     left: '←', up: '↑', down: '↓', right: '→',
-    layer: layer === 'alpha' ? '#+=' : 'abc', dismiss: '⌄', pad: '🖱'
+    layer: layer === 'alpha' ? '#+=' : 'abc', dismiss: '⌄'
 }[key] ?? out(key));
 
 const press = key => {
     if (key === 'shift')   { shift = !shift; render(); return; }
     if (key === 'layer')   { layer = layer === 'alpha' ? 'symbols' : 'alpha'; shift = false; render(); return; }
-    if (key === 'pad')     { setPad(true); return; }
     if (previewing()) return;
-    if (key === 'dismiss') { document.body.classList.remove('typing'); ed.blur(); return; }
+    if (key === 'dismiss') { dismiss(); return; }
 
     const oneShot = shift;
     switch (key) {
-        case 'backspace': ed.backspace(); break;
-        case 'tab':       ed.indent();    break;
-        case 'space':     ed.insert(' '); break;
-        case 'newline':   ed.newline();   break;
-        case 'left':      ed.moveCursor(-1); break;
-        case 'right':     ed.moveCursor(1);  break;
-        case 'up':        ed.moveLine(-1);   break;
-        case 'down':      ed.moveLine(1);    break;
-        default:          ed.insert(out(key));
+        case 'backspace': target.backspace(); break;
+        case 'tab':       target.indent();    break;
+        case 'space':     target.insert(' '); break;
+        case 'newline':   target.newline();   break;
+        case 'left':      target.moveCursor(-1); break;
+        case 'right':     target.moveCursor(1);  break;
+        case 'up':        target.moveLine(-1);   break;
+        case 'down':      target.moveLine(1);    break;
+        default:          target.insert(out(key));
     }
     if (oneShot) { shift = false; render(); }
 };
 
-const FN = new Set(['shift','backspace','tab','newline','left','up','down','right','layer','dismiss','pad']);
+const FN = new Set(['shift','backspace','tab','newline','left','up','down','right','layer','dismiss']);
 
 const mkKey = key => {
     const b = document.createElement('button');
@@ -118,9 +147,9 @@ const mkKey = key => {
             moved = true;
             const dx = Math.trunc((e.clientX - ax) / 12);   /* 12px ≈ 1 символ */
             const dy = Math.trunc((e.clientY - ay) / 24);   /* 24px ≈ 1 строка */
-            if (dx) { ed.moveCursor(dx); ax += dx * 12; }
+            if (dx) { target.moveCursor(dx); ax += dx * 12; }
             if (dy) {
-                for (let i = 0; i < Math.abs(dy); i++) ed.moveLine(dy > 0 ? 1 : -1);
+                for (let i = 0; i < Math.abs(dy); i++) target.moveLine(dy > 0 ? 1 : -1);
                 ay += dy * 24;
             }
         });
@@ -307,18 +336,21 @@ const render = () => {
 };
 
 const show = () => {
-    if (extKb() || !IS_MOBILE()) return;
-    if (document.body.classList.contains('typing')) return;
+    if (!shouldKb()) return;
     document.body.classList.add('typing');
-    requestAnimationFrame(() => requestAnimationFrame(() => ed.revealCursor()));
+    document.body.classList.toggle('kb-term', target.name === 'terminal');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (target.name === 'terminal') target.focus?.();
+        else ed.revealCursor();
+    }));
 };
 
 const hide = e => {
     const rt = e?.relatedTarget;
     if (!rt || !rt.matches?.('input, textarea, select')) return;
-    const hosts = [document.querySelector('#ed'), document.querySelector('#ed2')].filter(Boolean);
-    if (hosts.some(h => h.contains(rt))) return;
-    document.body.classList.remove('typing');
+    /* Переход фокуса на наш редактор/терминал — клавиатуру оставляем. */
+    if (allHosts.some(h => h && (h === rt || h.contains(rt)))) return;
+    dismiss();
 };
 
 /* ===================== Детектор встряхивания ===================== */
@@ -358,25 +390,30 @@ const enableMotion = async () => {
 
 /* ===================== Публичный API ===================== */
 
-export function init(hosts) {
+export function init(hostDefs) {
     kb = $('#keyboard');
-    const arr = (Array.isArray(hosts) ? hosts : [hosts]).filter(Boolean);
-    host = arr[0];
+    const arr = (Array.isArray(hostDefs) ? hostDefs : [hostDefs])
+        .filter(Boolean)
+        .map(h => h.el ? h : { el: h, target: 'editor' });
 
-    arr.forEach(h => {
+    allHosts = arr.map(h => h.el).filter(Boolean);
+    host = allHosts[0];
+
+    arr.forEach(({ el, target: tname }) => {
+        if (!el) return;
         let sx = 0, sy = 0, st = 0;
-        h.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; st = Date.now(); }, true);
-        h.addEventListener('pointerup', e => {
+        el.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; st = Date.now(); }, true);
+        el.addEventListener('pointerup', e => {
             const tap = Math.hypot(e.clientX - sx, e.clientY - sy) < 10 && Date.now() - st < 400;
-            if (tap) show();
+            if (tap) { if (tname) setTarget(tname); show(); }
         }, true);
-        h.addEventListener('focusout', hide);
+        el.addEventListener('focusout', hide);
     });
 
-    /* Терминал использует нативную клавиатуру: inputmode="none" ломает фокус на iOS. */
+    /* Ввод терминала: при экранной клавиатуре глушим нативную, при внешней — оставляем text. */
     const cmd = $('#cmd');
     if (cmd) {
-        cmd.inputMode = 'text';
+        cmd.inputMode = shouldKb() ? 'none' : 'text';
         cmd.setAttribute('autocapitalize', 'off');
         cmd.setAttribute('autocorrect', 'off');
         cmd.setAttribute('autocomplete', 'off');
@@ -391,13 +428,15 @@ export function init(hosts) {
     // Android включится сразу, iOS — по первому касанию клавиатуры/редактора
     enableMotion();
     kb.addEventListener('pointerdown', enableMotion, { once: true });
-    arr.forEach(h => h.addEventListener('pointerup', enableMotion, { once: true }));
+    arr.forEach(({ el }) => el && el.addEventListener('pointerup', enableMotion, { once: true }));
 
     render();
 }
 
 export function refreshInput() {
     ed.refreshInput();
+    const cmd = $('#cmd');
+    if (cmd) cmd.inputMode = shouldKb() ? 'none' : 'text';
 }
 
 export const togglePad = () => setPad(!padMode);

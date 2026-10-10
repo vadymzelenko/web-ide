@@ -1,4 +1,5 @@
 import * as fs from './fs.js';
+import { isMobile } from './platform.js';
 
 const $$ = s => [...document.querySelectorAll(s)];
 const T = ['editor', 'preview', 'terminal'];   /* порядок свайпа */
@@ -12,8 +13,9 @@ const iconFor = (name, dir) => {
 };
 
 /* ---------- Навигация между секциями ---------- */
-const isMobile = () => matchMedia('(max-width:899px), (max-height:500px)').matches;
 let _cur = 'editor';
+let _onShow = null;
+export const onShow = fn => { _onShow = fn; };
 
 function syncTabs() {
     const sheet = document.body.classList.contains('sheet-open');
@@ -33,16 +35,18 @@ export const show = n => {
     const mobile = isMobile();
 
     if (mobile && n === 'files') {
-        document.body.classList.remove('typing');
+        document.body.classList.remove('typing', 'kb-term');
         setSheet(!document.body.classList.contains('sheet-open'));
         return;
     }
     if (mobile) setSheet(false);
-    if (n !== 'editor') document.body.classList.remove('typing');   /* клава только над кодом */
+    /* Экранная клавиатура живёт над кодом и над терминалом, но не над превью/файлами. */
+    if (n !== 'editor' && n !== 'terminal') document.body.classList.remove('typing', 'kb-term');
 
     _cur = n;
     $$('main > section').forEach(s => s.classList.toggle('on', s.dataset.p === n));
     syncTabs();
+    _onShow?.(n);
 };
 
 export function initNav() {
@@ -86,7 +90,7 @@ export function prompt(title, defaultValue = '') {
     return new Promise(resolve => {
         const d = document.getElementById('prompt-dialog');
         const input = document.getElementById('prompt-input');
-        document.body.classList.remove('typing');
+        document.body.classList.remove('typing', 'kb-term');
         document.getElementById('prompt-title').textContent = title;
         input.value = defaultValue;
         d.showModal();

@@ -1,12 +1,12 @@
 /* Версия кэша. Изменил любой файл из PRECACHE — подними номер, иначе установленное
    приложение продолжит отдавать старую версию. */
-const V = 'webide-v11';
+const V = 'webide-v12';
 
 const PRECACHE = [
     './', 'index.html', 'manifest.json',
-    'src/main.js', 'src/fs.js', 'src/editor.js', 'src/preview.js',
+    'src/main.js', 'src/fs.js', 'src/fs-folder.js', 'src/editor.js', 'src/preview.js',
     'src/terminal.js', 'src/ui.js', 'src/keyboard.js', 'src/theme.css',
-    'src/format.js', 'src/zip.js',
+    'src/platform.js', 'src/format.js', 'src/zip.js',
     'src/vendor/codemirror.js',
     'icons/icon-192.png', 'icons/icon-512.png'
 ];

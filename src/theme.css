@@ -189,6 +189,38 @@ body.header-hidden .toolbar {
 .tb-docs::-webkit-scrollbar { display: none; }
 .tb-docs:empty { display: none; }
 
+/* Индикатор сохранения/синхронизации в тулбаре */
+.tb-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 0 8px;
+    height: 22px;
+    border-radius: 20px;
+    background: var(--bg-2);
+    border: 1px solid var(--bd-1);
+    color: var(--fg-3);
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: color var(--t), background var(--t-fast);
+}
+.tb-status .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--fg-4);
+    flex-shrink: 0;
+    transition: background var(--t);
+}
+.tb-status.saved    .dot { background: var(--ok); }
+.tb-status.synced   .dot { background: var(--ok); }
+.tb-status.syncing  .dot { background: var(--warn); animation: tb-pulse 1s ease-in-out infinite; }
+.tb-status.dirty    .dot { background: var(--warn); }
+.tb-status.syncing  { color: var(--fg-1); }
+@keyframes tb-pulse { 50% { opacity: .35; } }
+@media (max-width: 899px), (max-height: 500px) {
+    .tb-status .lbl { display: none; }
+    .tb-status { padding: 0; width: 20px; height: 20px; justify-content: center; background: transparent; border-color: transparent; }
+}
+
 .tb-docs button {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 0 9px;
@@ -881,6 +913,14 @@ dialog input[type="range"]::-moz-range-thumb {
 body.typing #keyboard,
 body.kb-preview #keyboard { display: flex; }
 
+/* На устройствах с точным указателем (мышь/трекпад) экранная клавиатура не нужна —
+   даже если класс body.typing остался после ресайза окна. На планшетах с пальцем
+   (pointer: coarse) это правило не срабатывает, и клавиатура показывается. */
+@media (pointer: fine) {
+    body.typing #keyboard,
+    body.kb-preview #keyboard { display: none !important; }
+}
+
 #keyboard .kb-row {
     flex: 1; min-height: 0;
     display: flex;
@@ -999,7 +1039,6 @@ body.kb-term [data-p="terminal"] { padding-bottom: var(--kb-h, 300px); }
     [data-p="terminal"] { grid-area: terminal; position: relative; }
     [data-p="preview"]  { grid-area: preview;  border-left: 1px solid var(--bd-1); }
 
-    #keyboard { display: none !important; }
     .rz, .rz-h { display: block; }
 
     main.files-hidden { grid-template-columns: 0 minmax(0, 1fr) var(--w3); }

@@ -8,6 +8,7 @@ import {
     HighlightStyle, syntaxHighlighting,
     tags
 } from './vendor/codemirror.js';
+import { shouldKb } from './platform.js';
 
 /* ---------- IntelliSense ---------- */
 const JS_KEYWORDS = [
@@ -69,10 +70,9 @@ const makeSource = lang => context => {
 };
 
 /* ---------- Платформа ---------- */
-const isMobile = () => typeof matchMedia !== 'undefined'
-    && matchMedia('(max-width: 899px), (max-height: 500px)').matches;
-
-const customKb = () => isMobile() && localStorage.getItem('ext-kb') !== '1';
+/* Экранная клавиатура нужна не только на телефонах, но и на планшетах
+   (pointer: coarse), поэтому используем общий предикат из platform.js. */
+const customKb = () => shouldKb();
 
 /* Кэш, чтобы не читать localStorage/matchMedia на каждом апдейте. */
 let _kb = customKb();

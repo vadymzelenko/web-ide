@@ -6,10 +6,21 @@ import * as ui from './ui.js';
 import * as keyboard from './keyboard.js';
 import { format } from './format.js';
 import { exp as exportZip, imp as importZip } from './zip.js';
+import { isMobile, isLandscape } from './platform.js';
+import * as folder from './fs-folder.js';
 
 const $  = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const langOf = p => ({ html: 'html', css: 'css', js: 'js' }[p.split('.').pop()] || 'js');
+
+/* ---------- Индикатор сохранения в тулбаре ---------- */
+const statusEl = () => $('#tb-status');
+const setStatus = (state, label) => {
+    const el = statusEl();
+    if (!el) return;
+    el.className = 'tb-status ' + state;
+    el.querySelector('.lbl').textContent = label;
+};
 
 ui.theme(localStorage.getItem('theme') || 'dark');
 ui.fontSize(localStorage.getItem('fs') || 14);
@@ -24,8 +35,6 @@ const P = [
 let active = 0;
 
 /* ---------- Tabs ---------- */
-const isMobile = () => matchMedia('(max-width:899px), (max-height:500px)').matches;
-
 const renderTabs = i => {
     const st = P[i];
 
@@ -60,6 +69,8 @@ const save = () => {
     fs.save();
     pv.run();
     P[active].dirty = false;
+    if (folder.isConnected()) setStatus('syncing', 'Синхронизация…');
+    else setStatus('saved', 'Сохранено');
 };
 
 /* ---------- open / close ---------- */
@@ -109,6 +120,7 @@ function refresh() {
 
 /* ---------- Инициализация ---------- */
 await fs.load();
+folder.init();          /* подписываемся на изменения → автосохранение в папку (если подключена) */
 
 const makeHandlers = i => ({
     onChange: t => {
@@ -117,6 +129,7 @@ const makeHandlers = i => ({
         fs.write(st.cur, t);
         st.dirty = true;
         pv.schedule();
+        setStatus('dirty', 'Изменения…');
     },
     onSave: save,
     onRun: () => { pv.run(); ui.show('preview'); }
@@ -163,12 +176,25 @@ $$('.ed-pane').forEach(p => {
 /* ---------- Модули UI ---------- */
 pv.init($('#pv'), $('[data-p="preview"]'));
 ui.initNav();
-keyboard.init([$('#ed'), $('#ed2')]);
-ui.resizers();
-term.init($('#out'), $('#cmd'), {
+
+/* Терминал создаём раньше клавиатуры: он регистрирует свою «цель ввода». */
+const termKb = term.init($('#out'), $('#cmd'), {
     open: p => openIn(active, p),
     refresh
 });
+keyboard.registerTarget('terminal', termKb);
+
+/* Клавиатура открывается по тапу и в редакторе, и в терминале. */
+keyboard.init([
+    { el: $('#ed'),  target: 'editor' },
+    { el: $('#ed2'), target: 'editor' },
+    { el: $('#cmd'), target: 'terminal' }
+]);
+
+/* При переключении секции клавиатура знает, куда писать. */
+ui.onShow(n => keyboard.setTarget(n === 'terminal' ? 'terminal' : 'editor'));
+
+ui.resizers();
 
 ['/index.html', '/style.css', '/script.js']
     .filter(fs.isFile)
@@ -201,6 +227,41 @@ $('#zip-exp').onclick = async () => {
     try { await exportZip(); ui.toast('Экспорт готов', 'ok'); }
     catch (e) { ui.toast('Экспорт: ' + e.message, 'err'); }
 };
+
+/* ---------- Автосохранение в локальную папку ---------- */
+folder.onSync(() => {
+    if (folder.isConnected()) setStatus('synced', 'Папка: ' + folder.currentName());
+    else setStatus('saved', 'Сохранено');
+});
+
+const folderBtn = $('#folder-btn');
+const syncFolder = async () => {
+    if (folder.isConnected()) {
+        folder.disconnect();
+        setStatus('saved', 'Сохранено');
+        const sp = folderBtn?.querySelector('span');
+        if (sp) sp.textContent = 'Папка проекта';
+        ui.toast('Папка отключена', 'ok');
+        return;
+    }
+    try {
+        const name = await folder.connect();
+        setStatus('synced', 'Папка: ' + name);
+        const sp = folderBtn?.querySelector('span');
+        if (sp) sp.textContent = 'Отключить папку';
+        ui.toast('Автосохранение включено: ' + name, 'ok');
+    } catch (e) {
+        if (e.name === 'AbortError') return;
+        ui.toast('Папка: ' + e.message, 'err');
+    }
+};
+if (folderBtn) folderBtn.onclick = syncFolder;
+
+if (!folder.isSupported()) {
+    setStatus('saved', 'Сохранено');
+} else if (folder.isConnected()) {
+    setStatus('synced', 'Папка: ' + folder.currentName());
+}
 
 /* ---------- Форматирование ---------- */
 $('#fmt').onclick = async () => {
@@ -305,8 +366,8 @@ window.addEventListener('drop', async e => {
    ================================================================ */
 const D = $('#set');
 const R = document.documentElement;
-const MOBILE    = () => matchMedia('(max-width:899px), (max-height:500px)').matches;
-const LANDSCAPE = () => matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+const MOBILE    = isMobile;
+const LANDSCAPE = isLandscape;
 const get = (k, d) => localStorage.getItem(k) ?? d;
 const KB_KEYS = ['kb-h', 'kb-gap', 'kb-split', 'kb-op', 'kb-scale'];
 const kbHeightDefault = () => (LANDSCAPE() ? 160 : 300);
@@ -464,7 +525,7 @@ burger.onclick = () => {
 };
 
 if (!localStorage.getItem('webide-first')) {
-    if (matchMedia('(max-width:899px), (max-height:500px)').matches) {
+    if (isMobile()) {
         localStorage.setItem('term-hidden', '1');
     }
     localStorage.setItem('webide-first', '1');

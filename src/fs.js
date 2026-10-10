@@ -38,10 +38,17 @@ const anc = p => {
     for (let i = 1; i < a.length; i++) state.dirs.add('/' + a.slice(0, i).join('/'));
 };
 
+/* Подписчики на «проект изменился» — например, синхронизация с локальной папкой. */
+const listeners = new Set();
+export const onChange = fn => { listeners.add(fn); return () => listeners.delete(fn); };
+
 let t;
 export const save = () => {
     clearTimeout(t);
-    t = setTimeout(() => idb('put', {files: state.files, dirs: [...state.dirs]}), 200);
+    t = setTimeout(() => {
+        idb('put', { files: state.files, dirs: [...state.dirs] }).catch(() => {});
+        listeners.forEach(fn => { try { fn(); } catch {} });
+    }, 200);
 };
 
 export const write = (p, c = '') => {
